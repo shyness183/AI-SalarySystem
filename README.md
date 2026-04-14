@@ -3,7 +3,6 @@
 > 基于 30,000 条全球 AI 岗位数据，集成机器学习预测、强化学习谈判、AI 就业顾问的一体化薪资分析平台
 
 ---
-！[iamge01]https://github.com/shyness183/AI-SalarySystem/blob/master/assets/PixPin_2026-04-14_17-11-57.png?raw=true
 ## 项目概览
 
 本系统以全球 AI 行业招聘数据为基础，构建了从数据清洗、特征工程、模型训练到 Web 交互的完整链路，提供以下核心能力：
@@ -18,7 +17,9 @@
 | 可解释性分析  | SHAP               | 单次预测的特征贡献可视化                                  |
 
 ---
-
+![image01](https://github.com/shyness183/AI-SalarySystem/blob/master/assets/PixPin_2026-04-14_17-11-57.png?raw=true)
+-------------
+![image02](https://github.com/shyness183/AI-SalarySystem/blob/master/assets/PixPin_2026-04-14_17-12-12.png?raw=true)
 ## 技术栈
 
 **后端**
