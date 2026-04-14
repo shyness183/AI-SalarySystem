@@ -229,5 +229,4 @@ Flask-Login + SQLAlchemy，支持注册/登录/退出/个人档案，密码 Werk
 ---
 
 ## 开发者
-
-**史宏宇** · 数据科学与大数据技术 22-6 · 山东科技大学
+steaker-shyness183
