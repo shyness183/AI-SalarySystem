@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}登录 — AI薪资预测系统{% endblock %}
+{% block page_title %}登录{% endblock %}
+{% block page_sub %}使用账号登录以保存预测记录{% endblock %}
+
+{% block content %}
+<style>
+.auth-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 40px;
+}
+.auth-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 36px 40px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: var(--shadow);
+}
+.auth-brand {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.auth-brand .brand-icon {
+  margin: 0 auto 10px;
+}
+.auth-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-1);
+  text-align: center;
+  margin-bottom: 6px;
+}
+.auth-sub {
+  font-size: 12px;
+  color: var(--text-3);
+  text-align: center;
+  margin-bottom: 24px;
+}
+.auth-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #991b1b;
+  margin-bottom: 16px;
+}
+.auth-form .form-group {
+  margin-bottom: 14px;
+}
+.auth-form label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+  display: block;
+  margin-bottom: 5px;
+}
+.auth-form input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-1);
+  background: var(--surface);
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.auth-form input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(67,97,238,.12);
+}
+.auth-remember {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+  margin-bottom: 20px;
+}
+.auth-submit {
+  width: 100%;
+  padding: 10px;
+  background: var(--accent-grad);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-ui);
+}
+.auth-submit:hover {
+  opacity: .88;
+  box-shadow: 0 4px 12px rgba(67,97,238,.3);
+}
+.auth-footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.auth-footer a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+</style>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="brand-icon">AI</div>
+    </div>
+    <div class="auth-title">欢迎回来</div>
+    <div class="auth-sub">登录后自动保存预测历史和对话记录</div>
+
+    {% if error %}
+    <div class="auth-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" class="auth-form">
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" name="username" placeholder="请输入用户名" autocomplete="username" required>
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" name="password" placeholder="请输入密码" autocomplete="current-password" required>
+      </div>
+      <label class="auth-remember">
+        <input type="checkbox" name="remember"> 记住我（7天免登录）
+      </label>
+      <button type="submit" class="auth-submit">登录</button>
+    </form>
+
+    <div class="auth-footer">
+      还没有账号？<a href="/register">立即注册</a>
+      &ensp;·&ensp;
+      <a href="/">不登录，直接使用</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

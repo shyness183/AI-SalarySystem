@@ -1,0 +1,154 @@
+feature,feature_raw,importance
+Years of Experience,years_experience,0.28163695
+Company Size,size_encoded,0.08467475
+Experience Level,exp_level_encoded,0.07344681
+Country: India,ctry_INDIA,0.05773301
+Country: China,ctry_CHINA,0.048682414
+Country: Switzerland,ctry_SWITZERLAND,0.03524444
+Country: Denmark,ctry_DENMARK,0.025023663
+Country: Norway,ctry_NORWAY,0.023738502
+Country: South Korea,ctry_SOUTH KOREA,0.020601537
+Country: United States,ctry_UNITED STATES,0.016722476
+Country: Austria,ctry_AUSTRIA,0.01645677
+Country: Israel,ctry_ISRAEL,0.015118038
+Country: Finland,ctry_FINLAND,0.015033857
+Country: Ireland,ctry_IRELAND,0.012159293
+Country: Japan,ctry_JAPAN,0.010045443
+Country: United Kingdom,ctry_UNITED KINGDOM,0.0065314523
+Country: Singapore,ctry_SINGAPORE,0.0062775407
+Country: Netherlands,ctry_NETHERLANDS,0.005376889
+Country: Canada,ctry_CANADA,0.0025217426
+Country: France,ctry_FRANCE,0.0021886749
+Country: Sweden,ctry_SWEDEN,0.0012713703
+SkillVec[65],skill_emb_65,0.0008048404
+SkillVec[10],skill_emb_10,0.0005678097
+SkillVec[20],skill_emb_20,0.0005629084
+JD Length,job_description_length,0.0005426862
+SkillVec[18],skill_emb_18,0.00053563336
+Country: Germany,ctry_GERMANY,0.0005179803
+SkillVec[94],skill_emb_94,0.00048038198
+SkillVec[4],skill_emb_4,0.00047346417
+SkillVec[51],skill_emb_51,0.0004599583
+Remote Ratio,remote_ratio,0.0004549704
+SkillVec[60],skill_emb_60,0.00044948142
+SkillVec[73],skill_emb_73,0.0004168669
+SkillVec[3],skill_emb_3,0.00038169805
+SkillVec[64],skill_emb_64,0.00037930263
+SkillVec[69],skill_emb_69,0.00036084338
+SkillVec[37],skill_emb_37,0.00034400317
+SkillVec[16],skill_emb_16,0.00033574938
+SkillVec[88],skill_emb_88,0.000314478
+SkillVec[68],skill_emb_68,0.00030888576
+SkillVec[79],skill_emb_79,0.00030587558
+SkillVec[41],skill_emb_41,0.0002891721
+Benefits Score,benefits_score,0.00026909306
+Country: Australia,ctry_AUSTRALIA,0.00026642825
+SkillVec[67],skill_emb_67,0.00026147536
+SkillVec[98],skill_emb_98,0.00025740155
+SkillVec[74],skill_emb_74,0.0002566262
+SkillVec[44],skill_emb_44,0.00023975575
+SkillVec[36],skill_emb_36,0.00022681661
+SkillVec[86],skill_emb_86,0.00022511561
+SkillVec[43],skill_emb_43,0.00022336983
+SkillVec[6],skill_emb_6,0.00020810397
+Days to Deadline,days_to_deadline,0.00020725024
+SkillVec[90],skill_emb_90,0.00020519354
+SkillVec[85],skill_emb_85,0.00019519418
+SkillVec[56],skill_emb_56,0.00018937369
+SkillVec[8],skill_emb_8,0.00017875443
+SkillVec[5],skill_emb_5,0.00017456208
+Post Month,post_month,0.00015230617
+SkillVec[30],skill_emb_30,0.00014993189
+SkillVec[42],skill_emb_42,0.0001489825
+SkillVec[97],skill_emb_97,0.00014849304
+SkillVec[55],skill_emb_55,0.00014731208
+SkillVec[15],skill_emb_15,0.0001373898
+SkillVec[32],skill_emb_32,0.00013619466
+SkillVec[71],skill_emb_71,0.00012499565
+SkillVec[47],skill_emb_47,0.00012483865
+SkillVec[93],skill_emb_93,0.00012319609
+SkillVec[92],skill_emb_92,0.000119308424
+SkillVec[53],skill_emb_53,0.00011721042
+SkillVec[28],skill_emb_28,0.000116635
+SkillVec[72],skill_emb_72,0.00011302158
+SkillVec[63],skill_emb_63,0.000108973334
+SkillVec[96],skill_emb_96,0.000107028434
+Industry: Energy,ind_Energy,0.00010519086
+Post Quarter,post_quarter,0.00010434267
+SkillVec[46],skill_emb_46,0.000100284466
+SkillVec[33],skill_emb_33,9.9218785e-05
+SkillVec[62],skill_emb_62,9.406882e-05
+SkillVec[13],skill_emb_13,8.610964e-05
+SkillVec[87],skill_emb_87,8.578243e-05
+SkillVec[7],skill_emb_7,8.5611144e-05
+EmpType: CT,emp_CT,8.3246174e-05
+SkillVec[12],skill_emb_12,7.3343435e-05
+SkillVec[58],skill_emb_58,7.035441e-05
+SkillVec[23],skill_emb_23,6.9908936e-05
+SkillVec[45],skill_emb_45,6.890845e-05
+Industry: Media,ind_Media,6.851287e-05
+SkillVec[50],skill_emb_50,6.708002e-05
+SkillVec[39],skill_emb_39,6.6537934e-05
+SkillVec[40],skill_emb_40,6.330512e-05
+SkillVec[59],skill_emb_59,6.186578e-05
+SkillVec[66],skill_emb_66,5.4386666e-05
+SkillVec[83],skill_emb_83,5.397054e-05
+SkillVec[95],skill_emb_95,5.0111405e-05
+SkillVec[61],skill_emb_61,4.8930902e-05
+SkillVec[17],skill_emb_17,4.820641e-05
+SkillVec[99],skill_emb_99,4.0999705e-05
+SkillVec[11],skill_emb_11,3.6379257e-05
+Industry: Manufacturing,ind_Manufacturing,3.2565415e-05
+SkillVec[78],skill_emb_78,2.8554046e-05
+SkillVec[38],skill_emb_38,2.827233e-05
+SkillVec[34],skill_emb_34,2.6303447e-05
+SkillVec[31],skill_emb_31,2.2992372e-05
+SkillVec[49],skill_emb_49,2.1815458e-05
+SkillVec[35],skill_emb_35,0.0
+SkillVec[84],skill_emb_84,0.0
+SkillVec[76],skill_emb_76,0.0
+SkillVec[77],skill_emb_77,0.0
+Education Required,edu_level_encoded,0.0
+Industry: Healthcare,ind_Healthcare,0.0
+SkillVec[80],skill_emb_80,0.0
+SkillVec[81],skill_emb_81,0.0
+SkillVec[82],skill_emb_82,0.0
+Post Year,post_year,0.0
+SkillVec[29],skill_emb_29,0.0
+Industry: Government,ind_Government,0.0
+Deadline Month,deadline_month,0.0
+Industry: Gaming,ind_Gaming,0.0
+SkillVec[75],skill_emb_75,0.0
+Industry: Education,ind_Education,0.0
+SkillVec[89],skill_emb_89,0.0
+Industry: Consulting,ind_Consulting,0.0
+SkillVec[91],skill_emb_91,0.0
+Deadline Year,deadline_year,0.0
+Industry: Automotive,ind_Automotive,0.0
+Skill Count,skill_count,0.0
+Industry: Finance,ind_Finance,0.0
+SkillVec[22],skill_emb_22,0.0
+SkillVec[27],skill_emb_27,0.0
+SkillVec[21],skill_emb_21,0.0
+SkillVec[19],skill_emb_19,0.0
+SkillVec[48],skill_emb_48,0.0
+SkillVec[24],skill_emb_24,0.0
+SkillVec[25],skill_emb_25,0.0
+SkillVec[52],skill_emb_52,0.0
+SkillVec[14],skill_emb_14,0.0
+SkillVec[54],skill_emb_54,0.0
+SkillVec[9],skill_emb_9,0.0
+SkillVec[57],skill_emb_57,0.0
+SkillVec[2],skill_emb_2,0.0
+SkillVec[26],skill_emb_26,0.0
+SkillVec[1],skill_emb_1,0.0
+SkillVec[0],skill_emb_0,0.0
+EmpType: PT,emp_PT,0.0
+EmpType: FT,emp_FT,0.0
+EmpType: FL,emp_FL,0.0
+Industry: Transportation,ind_Transportation,0.0
+Industry: Telecommunications,ind_Telecommunications,0.0
+Industry: Technology,ind_Technology,0.0
+SkillVec[70],skill_emb_70,0.0
+Industry: Retail,ind_Retail,0.0
+Industry: Real Estate,ind_Real Estate,0.0

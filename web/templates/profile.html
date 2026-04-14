@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}个人中心 — AI薪资预测系统{% endblock %}
+{% block page_title %}个人中心{% endblock %}
+{% block page_sub %}{{ current_user.username }} 的预测历史与对话记录{% endblock %}
+
+{% block content %}
+<style>
+.profile-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 800px) {
+  .profile-grid { grid-template-columns: 1fr; }
+}
+.avatar-circle {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: var(--accent-grad);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+}
+.stat-row {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.stat-item { text-align: center; }
+.stat-num  { font-size: 22px; font-weight: 700; color: var(--accent); }
+.stat-label{ font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.pred-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.pred-row:last-child { border-bottom: none; }
+.pred-salary { font-weight: 700; color: var(--accent); }
+.pred-meta   { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.chat-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.chat-row:last-child { border-bottom: none; }
+.chat-role-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  margin-right: 6px;
+}
+.role-user      { background: var(--accent-light); color: var(--accent); }
+.role-assistant { background: #f0fdf4; color: #166534; }
+.empty-hint {
+  text-align: center;
+  padding: 32px 20px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+</style>
+
+<div class="profile-grid">
+
+  <!-- 左侧：用户信息 -->
+  <div>
+    <div class="card card-primary" style="text-align:center;">
+      <div class="avatar-circle">{{ current_user.username[0].upper() }}</div>
+      <div style="font-size:16px;font-weight:700;color:var(--text-1);">{{ current_user.username }}</div>
+      <div style="font-size:12px;color:var(--text-3);margin-top:4px;">{{ current_user.email }}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:4px;">
+        注册于 {{ current_user.created_at.strftime('%Y-%m-%d') }}
+      </div>
+      <div class="stat-row">
+        <div class="stat-item">
+          <div class="stat-num">{{ predictions|length }}</div>
+          <div class="stat-label">预测次数</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">{{ recent_chats|length }}</div>
+          <div class="stat-label">对话记录</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-secondary" style="margin-top:0;">
+      <div style="font-size:12px;color:var(--text-2);line-height:2;">
+        <a href="/predict" class="btn btn-sm" style="width:100%;justify-content:center;margin-bottom:8px;">开始新预测</a>
+        <a href="/advice"  class="btn btn-outline btn-sm" style="width:100%;justify-content:center;">职业建议</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧 -->
+  <div>
+
+    <!-- 预测历史 -->
+    <div class="card card-primary">
+      <div class="card-title"><span class="card-title-dot"></span>预测历史（最近 20 条）</div>
+      {% if predictions %}
+        {% for p in predictions %}
+        <div class="pred-row">
+          <div>
+            <div class="pred-salary">${{ "{:,}".format(p.predicted_salary) }}</div>
+            <div class="pred-meta">
+              {% if p.input_params %}
+                {% set params = p.input_params | from_json %}
+                {{ params.get('experience_level','') }} · {{ params.get('country','') | title }}
+              {% endif %}
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--text-3);">
+            {{ p.created_at.strftime('%Y-%m-%d %H:%M') }}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-hint">
+          暂无预测记录，<a href="/predict" style="color:var(--accent);">去预测一下</a>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- 近期对话 -->
+    <div class="card card-secondary">
+      <div class="card-title"><span class="card-title-dot"></span>近期 AI 对话</div>
+      {% if recent_chats %}
+        {% for c in recent_chats %}
+        <div class="chat-row">
+          <span class="chat-role-badge {{ 'role-user' if c.role == 'user' else 'role-assistant' }}">
+            {{ '我' if c.role == 'user' else 'AI' }}
+          </span>
+          <span style="color:var(--text-2);">{{ c.content[:80] }}{% if c.content|length > 80 %}…{% endif %}</span>
+          <span style="float:right;font-size:11px;color:var(--text-3);">{{ c.created_at.strftime('%m-%d %H:%M') }}</span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-hint">暂无对话记录</div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+<script>
+// profile.html 里解析 JSON 参数需要自定义 filter，这里用纯 JS 安全降级
+</script>
+{% endblock %}

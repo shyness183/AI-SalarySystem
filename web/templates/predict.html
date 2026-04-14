@@ -1,0 +1,935 @@
+{% extends "base.html" %}
+{% block title %}薪资预测 — AI薪资预测系统{% endblock %}
+{% block page_title %}薪资预测{% endblock %}
+{% block page_sub %}输入职位信息，XGBoost 实时预测{% endblock %}
+
+{% block content %}
+<style>
+/* ── 技能标签 ──────────────────────────────────────── */
+.skill-tag {
+  display: inline-block;
+  padding: 4px 11px;
+  margin: 3px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--text-2);
+  user-select: none;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.skill-tag:hover  { border-color: var(--accent); color: var(--accent); }
+.skill-tag.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* ── 技能输入框 ────────────────────────────────────── */
+.skill-input-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 42px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: text;
+  transition: border-color .15s, box-shadow .15s;
+}
+.skill-input-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(67,97,238,.12);
+}
+.skill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px 3px 11px;
+  background: var(--accent-light);
+  border: 1px solid var(--accent-mid);
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.skill-chip-del {
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--accent);
+  opacity: .6;
+  padding: 0 1px;
+}
+.skill-chip-del:hover { opacity: 1; color: var(--danger); }
+#skill-text-input {
+  border: none; outline: none;
+  font-size: 13px; flex: 1;
+  min-width: 140px;
+  background: transparent;
+  color: var(--text-1);
+}
+#skill-text-input::placeholder { color: var(--text-3); }
+
+/* ── 影响标记 ──────────────────────────────────────── */
+.tag-high { font-size: 10px; color: var(--accent); font-weight: 600; }
+
+/* ── 分隔区段 ──────────────────────────────────────── */
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  margin: 20px 0 10px;
+}
+
+/* ── 字段提示 ⓘ ────────────────────────────────────── */
+.field-hint {
+  position: relative;
+  cursor: help;
+  color: var(--text-3);
+  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  border: 1px solid var(--text-3);
+  margin-left: 3px;
+  vertical-align: middle;
+  line-height: 1;
+}
+.field-hint::after {
+  content: attr(data-hint);
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 400;
+  padding: 5px 9px;
+  border-radius: 5px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s;
+  z-index: 200;
+}
+.field-hint:hover::after { opacity: 1; }
+
+/* ── 可折叠区段 ────────────────────────────────────── */
+.section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 0;
+  margin-top: 16px;
+}
+.section-toggle .section-label { margin: 0; }
+.section-toggle:hover .section-label { color: var(--accent); }
+.toggle-arrow { font-size: 10px; color: var(--text-3); transition: transform .2s; }
+.toggle-arrow.open { transform: rotate(180deg); }
+
+/* ── 职业模拟器 ─────────────────────────────────────── */
+.simulator-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--accent-light);
+  border: 1px solid var(--accent-mid);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  align-items: center;
+}
+.simulator-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  margin-right: 4px;
+}
+.sim-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 13px;
+  border: 1px solid var(--accent-mid);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--surface);
+  cursor: pointer;
+  transition: var(--transition-ui);
+  white-space: nowrap;
+}
+.sim-btn:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* ── 进度条 ─────────────────────────────────────────── */
+.fill-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.fill-progress-bar {
+  flex: 1;
+  height: 5px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.fill-progress-fill {
+  height: 100%;
+  background: var(--accent-grad);
+  border-radius: 3px;
+  transition: width .4s ease;
+}
+
+/* ── 结果面板状态 ────────────────────────────────────── */
+.result-placeholder-wrap {
+  text-align: center;
+  padding: 44px 20px;
+  color: var(--text-3);
+}
+.result-loading-wrap {
+  text-align: center;
+  padding: 44px 20px;
+  color: var(--text-3);
+}
+
+/* ── 引导 Tooltip ───────────────────────────────────── */
+.guide-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  pointer-events: none;
+}
+.guide-tip {
+  position: absolute;
+  background: #1e293b;
+  color: #fff;
+  font-size: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  max-width: 220px;
+  line-height: 1.6;
+  box-shadow: 0 6px 20px rgba(0,0,0,.3);
+  pointer-events: all;
+}
+.guide-tip::before {
+  content: '';
+  position: absolute;
+  top: -6px; left: 18px;
+  border: 6px solid transparent;
+  border-bottom-color: #1e293b;
+  border-top: none;
+}
+.guide-tip-header {
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: #a5b4fc;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.guide-tip-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  gap: 8px;
+}
+.guide-next-btn {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+.guide-skip-btn {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+}
+</style>
+
+<form id="pred-form" style="display:contents;" onsubmit="return false;">
+<div class="page-card" id="predict-card">
+
+  <div class="tab-nav">
+    <button class="tab-btn active" data-target="tab-basic"
+      onclick="switchTab('predict-card','tab-basic')">基本信息</button>
+    <button class="tab-btn" data-target="tab-skills"
+      onclick="switchTab('predict-card','tab-skills')">技能选择</button>
+    <button class="tab-btn" data-target="tab-predict-result" id="result-tab-btn"
+      onclick="switchTab('predict-card','tab-predict-result')">预测结果</button>
+  </div>
+
+  <!-- Tab 1: 基本信息 -->
+  <div class="tab-pane active" id="tab-basic">
+
+    <!-- 职业模拟器快捷栏 -->
+    <div class="simulator-bar">
+      <span class="simulator-label">职业模拟器</span>
+      <button class="sim-btn" onclick="loadPreset('fresh')">🎓 应届毕业生</button>
+      <button class="sim-btn" onclick="loadPreset('mid')">💼 中级工程师</button>
+      <button class="sim-btn" onclick="loadPreset('senior')">🚀 高级工程师</button>
+      <button class="sim-btn" onclick="loadPreset('expert')">👑 AI专家</button>
+    </div>
+
+    <!-- 填写进度 -->
+    <div class="fill-progress">
+      <span>已填写关键字段
+        <span id="fill-count" style="color:var(--accent);font-weight:700;">0</span>/5
+      </span>
+      <div class="fill-progress-bar">
+        <div class="fill-progress-fill" id="fill-bar" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="card card-primary">
+      <div class="card-title"><span class="card-title-dot"></span>输入职位信息</div>
+
+        <!-- 📍 基本信息 -->
+        <div class="section-label">📍 基本信息 <span class="tag-high">· 影响薪资最大</span></div>
+        <div class="form-grid">
+
+          <div class="form-group">
+            <label>经验等级 <span class="field-hint" data-hint="Gain=105.79，EN→EX 薪资跨度超2倍">ⓘ</span></label>
+            <select name="experience_level" onchange="triggerPredict()">
+              <option value="EN">入门级 EN</option>
+              <option value="MI" selected>中级 MI</option>
+              <option value="SE">高级 SE</option>
+              <option value="EX">专家级 EX</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>工作年限（年）<span class="field-hint" data-hint="Gain=46.91，与经验等级互补，0–30年">ⓘ</span></label>
+            <input type="number" name="years_experience" min="0" max="30" value="3" oninput="triggerPredict()">
+          </div>
+
+          <div class="form-group">
+            <label>所在国家 <span class="field-hint" data-hint="影响显著，北欧/北美薪资普遍高20–60%">ⓘ</span></label>
+            <select name="country" onchange="triggerPredict()">
+              {% for val in ['UNITED STATES','SWITZERLAND','NORWAY','DENMARK','CANADA','SWEDEN',
+                             'GERMANY','FINLAND','UNITED KINGDOM','AUSTRALIA','FRANCE','JAPAN',
+                             'IRELAND','NETHERLANDS','SINGAPORE','ISRAEL','AUSTRIA',
+                             'SOUTH KOREA','CHINA','INDIA'] %}
+              <option value="{{ val }}">{{ val.title() }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+        </div>
+
+        <!-- 🏢 公司信息 -->
+        <div class="section-label">🏢 公司信息</div>
+        <div class="form-grid">
+
+          <div class="form-group">
+            <label>公司规模 <span class="field-hint" data-hint="Gain=6.55，大型公司薪资略高约5–10%">ⓘ</span></label>
+            <select name="company_size" onchange="triggerPredict()">
+              <option value="S">小型 S</option>
+              <option value="M" selected>中型 M</option>
+              <option value="L">大型 L</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>所属行业 <span class="field-hint" data-hint="Gain较低，行业间薪资差异较小">ⓘ</span></label>
+            <select name="industry" onchange="triggerPredict()">
+              {% for v in ['Automotive','Consulting','Education','Energy','Finance','Gaming',
+                           'Government','Healthcare','Manufacturing','Media',
+                           'Real Estate','Retail','Technology','Telecommunications','Transportation'] %}
+              <option value="{{ v }}" {{ 'selected' if v == 'Technology' }}>{{ v }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+        </div>
+
+        <!-- 💼 职位信息 -->
+        <div class="section-label">💼 职位信息</div>
+        <div class="form-grid">
+
+          <div class="form-group">
+            <label>雇佣类型 <span class="field-hint" data-hint="影响较小，全职与合同制薪资差异不显著">ⓘ</span></label>
+            <select name="employment_type" onchange="triggerPredict()">
+              <option value="FT" selected>全职 FT</option>
+              <option value="PT">兼职 PT</option>
+              <option value="CT">合同制 CT</option>
+              <option value="FL">自由职业 FL</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>学历要求 <span class="field-hint" data-hint="Gain值低，学历对预测贡献有限">ⓘ</span></label>
+            <select name="education_required" onchange="triggerPredict()">
+              <option value="Associate">大专</option>
+              <option value="Bachelor" selected>本科</option>
+              <option value="Master">硕士</option>
+              <option value="PhD">博士</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>远程比例 <span class="field-hint" data-hint="与薪资相关性弱，影响较小">ⓘ</span></label>
+            <select name="remote_ratio" onchange="triggerPredict()">
+              <option value="0">0% 完全驻场</option>
+              <option value="50">50% 部分远程</option>
+              <option value="100" selected>100% 完全远程</option>
+            </select>
+          </div>
+
+        </div>
+
+        <!-- ⚙️ 其他（默认收起） -->
+        <div class="section-toggle" onclick="toggleOther(this)">
+          <span class="section-label">⚙️ 其他参数</span>
+          <span class="toggle-arrow">▼</span>
+        </div>
+        <div id="section-other" style="display:none;padding-top:4px;">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>福利评分 1–10 <span class="field-hint" data-hint="与薪资相关性弱，默认7.0即可">ⓘ</span></label>
+              <input type="number" name="benefits_score" min="1" max="10" step="0.1"
+                     value="7.0" oninput="triggerPredict()">
+            </div>
+            <div class="form-group">
+              <label>职位描述字符数 <span class="field-hint" data-hint="Gain值低，对结果影响不大，默认1200即可">ⓘ</span></label>
+              <input type="number" name="job_description_length" min="100" max="5000"
+                     value="1200" oninput="triggerPredict()">
+            </div>
+          </div>
+        </div>
+
+    </div><!-- /card-primary -->
+
+    <!-- 字段影响说明（可折叠） -->
+    <div class="card card-secondary">
+      <div class="card-title" onclick="toggleFieldExp()" style="cursor:pointer;justify-content:space-between;margin-bottom:0;">
+        <span style="display:flex;align-items:center;gap:8px;">
+          <span class="card-title-dot"></span>各字段对预测结果的影响说明
+        </span>
+        <span class="toggle-arrow" id="field-exp-arrow">▼</span>
+      </div>
+      <div id="field-exp-body" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;font-size:13px;line-height:1.9;">
+        <div>
+          <p class="fw-600 text-accent" style="margin-bottom:6px;">影响较大 ★</p>
+          <p class="text-muted">· <b style="color:var(--text-1)">经验等级</b>：Gain=105.79，EN→EX 薪资跨度超2倍</p>
+          <p class="text-muted">· <b style="color:var(--text-1)">工作年限</b>：Gain=46.91，与经验等级互补</p>
+          <p class="text-muted">· <b style="color:var(--text-1)">所在国家</b>：Top10 中占6席，北欧/北美薪资更高</p>
+          <p class="text-muted">· <b style="color:var(--text-1)">公司规模</b>：Gain=6.55，大公司薪资略高</p>
+        </div>
+        <div>
+          <p class="fw-600 text-dim" style="margin-bottom:6px;">影响较小（非系统错误）</p>
+          <p class="text-muted">· <b style="color:var(--text-1)">学历/行业/雇佣类型</b>：Gain 值低，变化幅度小属正常</p>
+          <p class="text-muted">· <b style="color:var(--text-1)">技能词向量</b>：100维合力影响，单字段 Gain 低但整体有效</p>
+          <p class="text-muted">· <b style="color:var(--text-1)">远程比例/福利评分</b>：与薪资相关性弱</p>
+        </div>
+      </div>
+      </div><!-- /field-exp-body -->
+    </div>
+
+    <div class="mt-16" style="display:flex;gap:12px;align-items:center;">
+      <button class="btn" onclick="switchTab('predict-card','tab-skills')">下一步：选择技能 →</button>
+      <button class="btn btn-outline" onclick="switchTab('predict-card','tab-predict-result')">查看预测结果</button>
+    </div>
+
+  </div><!-- /tab-basic -->
+
+  <!-- Tab 2: 技能选择 -->
+  <div class="tab-pane" id="tab-skills">
+
+    <div class="card card-primary">
+      <div class="card-title"><span class="card-title-dot"></span>🛠️ 技能选择
+        <span class="field-hint" data-hint="100维语义向量，合力影响预测，至少选1个效果更好">ⓘ</span>
+      </div>
+
+      <div style="margin-bottom:10px;line-height:1.2;">
+        {% set all_skills = ['Python','SQL','TensorFlow','PyTorch','Kubernetes','Docker',
+          'Scala','Linux','Git','Java','GCP','Hadoop','R','Tableau',
+          'Computer Vision','Data Visualization','Spark','MLOps','Azure',
+          'Deep Learning','NLP','AWS','Mathematics','Statistics'] %}
+        {% for skill in all_skills %}
+        <span class="skill-tag" data-skill="{{ skill }}" onclick="toggleTag(this)">{{ skill }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="skill-input-wrap" id="chip-wrap"
+           onclick="document.getElementById('skill-text-input').focus()">
+        <input type="text" id="skill-text-input"
+               placeholder="手动输入技能后按 Enter 或逗号添加…" autocomplete="off">
+      </div>
+
+      <div class="mt-8 fs-12 text-dim">
+        已选 <span id="sel-count" style="color:var(--accent);font-weight:600;">0</span> 个技能
+        &nbsp;·&nbsp; 词汇表共 24 词
+        &nbsp;<a href="javascript:void(0)" onclick="clearAll()"
+                 style="color:var(--warning);text-decoration:none;">清空</a>
+      </div>
+
+      <input type="hidden" name="skills"      id="skills-hidden"      value="">
+      <input type="hidden" name="skill_count" id="skill-count-hidden" value="0">
+
+      <div class="mt-20" style="display:flex;gap:12px;">
+        <button class="btn" onclick="switchTab('predict-card','tab-predict-result')">查看预测结果 →</button>
+        <button class="btn btn-outline" onclick="switchTab('predict-card','tab-basic')">← 返回基本信息</button>
+      </div>
+    </div>
+
+  </div><!-- /tab-skills -->
+
+  <!-- Tab 3: 预测结果 -->
+  <div class="tab-pane" id="tab-predict-result">
+
+    <div class="card result-panel" id="result-panel">
+
+      <!-- 占位 -->
+      <div id="result-placeholder">
+        <div class="result-placeholder-wrap">
+          <div style="font-size:38px;margin-bottom:12px;">📊</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text-2);margin-bottom:8px;">
+            填写信息后自动计算，无需点击
+          </div>
+          <div style="font-size:12px;">请先在「基本信息」和「技能选择」中填写您的情况</div>
+        </div>
+      </div>
+
+      <!-- 加载中 -->
+      <div id="result-loading" style="display:none;">
+        <div class="result-loading-wrap">
+          <div style="font-size:26px;margin-bottom:10px;">⏳</div>
+          <div style="font-size:13px;">预测中…</div>
+        </div>
+      </div>
+
+      <!-- 结果 -->
+      <div id="result-content" style="display:none;">
+        <div class="result-box">
+          <div class="fs-12 text-muted" style="margin-bottom:6px;">预测年薪（美元）</div>
+          <div class="result-salary" id="rp-salary">—</div>
+          <div class="result-range" id="rp-range">—</div>
+          <div class="fs-12 text-dim mt-8" id="rp-log">—</div>
+        </div>
+        <div id="rp-skill-note"></div>
+        <hr class="divider">
+        <div class="fw-600 fs-13" style="margin-bottom:8px;">同条件薪资分位数</div>
+        <div id="rp-pct-content" class="text-dim fs-12">计算中…</div>
+        <hr class="divider">
+        <div id="rp-shap-section" style="display:none;">
+          <div class="fw-600 fs-13" style="margin-bottom:10px;">特征贡献分析（SHAP）</div>
+          <div id="rp-shap-chart" style="width:100%;height:280px;"></div>
+          <div class="fs-12 text-dim mt-8">
+            蓝色 = 正贡献（提升薪资）&ensp;·&ensp;红色 = 负贡献（降低薪资）
+          </div>
+        </div>
+        <div class="mt-16">
+          <a href="/advice" class="btn btn-outline btn-sm">查看职业建议 →</a>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- /tab-predict-result -->
+
+</div><!-- /page-card -->
+</form>
+
+<!-- 引导层 -->
+<div class="guide-overlay" id="guide-overlay" style="display:none;">
+  <div class="guide-tip" id="guide-tip">
+    <div class="guide-tip-header" id="guide-step-label">步骤 1/3</div>
+    <div id="guide-tip-text"></div>
+    <div class="guide-tip-actions">
+      <button class="guide-skip-btn" onclick="skipGuide()">跳过引导</button>
+      <button class="guide-next-btn" id="guide-next-btn" onclick="nextGuide()">下一步 →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const C_ACCENT = '#4361ee';
+const C_DANGER = '#ef4444';
+let selected = new Set();
+
+/* ── 技能标签系统 ──────────────────────────────────── */
+function toggleTag(el) {
+  const skill = el.dataset.skill;
+  if (selected.has(skill)) {
+    selected.delete(skill); el.classList.remove('selected'); removeChip(skill);
+  } else {
+    selected.add(skill); el.classList.add('selected'); addChip(skill);
+  }
+  syncHidden(); triggerPredict();
+}
+
+document.getElementById('skill-text-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const val = this.value.trim().replace(/,$/, '');
+    if (val) addManual(val);
+    this.value = '';
+  }
+});
+document.getElementById('skill-text-input').addEventListener('blur', function() {
+  const val = this.value.trim().replace(/,$/, '');
+  if (val) { addManual(val); this.value = ''; }
+});
+
+function addManual(skill) {
+  if (selected.has(skill)) return;
+  selected.add(skill);
+  document.querySelectorAll('.skill-tag').forEach(tag => {
+    if (tag.dataset.skill.toLowerCase() === skill.toLowerCase()) tag.classList.add('selected');
+  });
+  addChip(skill); syncHidden(); triggerPredict();
+}
+
+function addChip(skill) {
+  const wrap = document.getElementById('chip-wrap');
+  const inp  = document.getElementById('skill-text-input');
+  const chip = document.createElement('span');
+  chip.className = 'skill-chip';
+  chip.dataset.skill = skill;
+  chip.innerHTML = `${skill}<span class="skill-chip-del" onclick="removeByChip(this)">×</span>`;
+  wrap.insertBefore(chip, inp);
+}
+
+function removeChip(skill) {
+  document.querySelectorAll('.skill-chip').forEach(c => {
+    if (c.dataset.skill === skill) c.remove();
+  });
+}
+
+function removeByChip(delBtn) {
+  const chip  = delBtn.parentElement;
+  const skill = chip.dataset.skill;
+  selected.delete(skill); chip.remove();
+  document.querySelectorAll('.skill-tag').forEach(tag => {
+    if (tag.dataset.skill === skill) tag.classList.remove('selected');
+  });
+  syncHidden(); triggerPredict();
+}
+
+function clearAll() {
+  selected.clear();
+  document.querySelectorAll('.skill-chip').forEach(c => c.remove());
+  document.querySelectorAll('.skill-tag').forEach(t => t.classList.remove('selected'));
+  syncHidden(); triggerPredict();
+}
+
+function syncHidden() {
+  const arr = [...selected];
+  document.getElementById('skills-hidden').value      = arr.join(', ');
+  document.getElementById('skill-count-hidden').value = arr.length;
+  document.getElementById('sel-count').textContent    = arr.length;
+}
+
+/* ── 折叠面板 ────────────────────────────────────────── */
+function toggleOther(toggleEl) {
+  const section = document.getElementById('section-other');
+  const arrow   = toggleEl.querySelector('.toggle-arrow');
+  const isOpen  = section.style.display !== 'none';
+  section.style.display = isOpen ? 'none' : 'block';
+  arrow.classList.toggle('open', !isOpen);
+}
+
+/* ── 自动预测（debounce 800ms） ─────────────────────── */
+let _debTimer = null;
+function triggerPredict() {
+  updateFillProgress();
+  clearTimeout(_debTimer);
+  _debTimer = setTimeout(doPredict, 800);
+}
+
+function getFormData() {
+  const fd = new FormData(document.getElementById('pred-form'));
+  const data = {};
+  fd.forEach((v, k) => { data[k] = v; });
+  return data;
+}
+
+function showPanel(id) {
+  ['result-placeholder', 'result-loading', 'result-content'].forEach(pid => {
+    document.getElementById(pid).style.display = (pid === id) ? '' : 'none';
+  });
+}
+
+function doPredict() {
+  const data = getFormData();
+  showPanel('result-loading');
+
+  fetch('/api/predict', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  })
+  .then(r => r.json())
+  .then(result => {
+    if (result.error) { showPanel('result-placeholder'); return; }
+
+    document.getElementById('rp-salary').textContent = result.salary;
+    document.getElementById('rp-range').textContent  =
+      `置信区间 ±17%：${result.salary_low} — ${result.salary_high}`;
+    document.getElementById('rp-log').textContent    =
+      `对数预测值：${result.log_pred} · XGBoost（R²=0.8721）`;
+
+    const noteEl = document.getElementById('rp-skill-note');
+    const sk = result.skill_note;
+    if (sk) {
+      const palette = {
+        ok:   '#f0fdf4|#bbf7d0|#166534',
+        warn: '#fffbeb|#fde68a|#92400e',
+        info: '#eff6ff|#bfdbfe|#1e40af'
+      };
+      const [bg, bd, tc] = (palette[sk[0]] || palette.info).split('|');
+      const icon = {ok:'✓', warn:'⚠', info:'ℹ'}[sk[0]] || 'ℹ';
+      noteEl.innerHTML = `<div style="margin-top:10px;padding:10px 14px;border-radius:var(--radius-sm);
+        font-size:12px;background:${bg};border:1px solid ${bd};color:${tc};">${icon}&ensp;${sk[1]}</div>`;
+    } else {
+      noteEl.innerHTML = '';
+    }
+
+    showPanel('result-content');
+    switchTab('predict-card', 'tab-predict-result');
+    requestPercentile(result.salary_raw, data.country, data.experience_level);
+    requestShap(data);
+  })
+  .catch(() => showPanel('result-placeholder'));
+}
+
+/* ── SHAP ──────────────────────────────────────────────── */
+let shapChart = null;
+function requestShap(data) {
+  fetch('/api/shap', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  })
+  .then(r => r.json())
+  .then(shap => {
+    if (shap.error) return;
+    const section = document.getElementById('rp-shap-section');
+    const dom     = document.getElementById('rp-shap-chart');
+    section.style.display = 'block';
+    if (shapChart) shapChart.dispose();
+    shapChart = echarts.init(dom);
+    shapChart.setOption({
+      tooltip: {
+        trigger: 'axis', axisPointer: {type: 'shadow'},
+        backgroundColor: '#fff', borderColor: '#e5e9f0',
+        textStyle: {color: '#1e293b', fontSize: 12},
+        formatter: params => {
+          const p = params[0];
+          return `<b>${p.name}</b><br/>${p.value >= 0 ? '▲ +' : '▼ '}${p.value.toFixed(4)}`;
+        }
+      },
+      grid: {left: 140, right: 70, top: 10, bottom: 16},
+      xAxis: {
+        type: 'value', axisLabel: {fontSize: 10, color: '#64748b'},
+        splitLine: {lineStyle: {color: '#e5e9f0', type: 'dashed'}}
+      },
+      yAxis: {
+        type: 'category', data: [...shap.features].reverse(),
+        axisLabel: {fontSize: 11, color: '#64748b'}
+      },
+      series: [{
+        type: 'bar', barMaxWidth: 18,
+        data: [...shap.shap_values].reverse().map(v => ({
+          value: v,
+          itemStyle: {color: v >= 0 ? C_ACCENT : C_DANGER, borderRadius: 3}
+        })),
+        label: {
+          show: true,
+          position: p => p.value >= 0 ? 'right' : 'left',
+          formatter: p => (p.value >= 0 ? '+' : '') + p.value.toFixed(4),
+          fontSize: 10, color: '#64748b'
+        }
+      }]
+    });
+    window.addEventListener('resize', () => shapChart && shapChart.resize());
+  })
+  .catch(() => {});
+}
+
+/* ── 薪资分位数 ──────────────────────────────────────── */
+function requestPercentile(salary, country, expLevel) {
+  if (!salary) return;
+  const url = `/api/salary-percentile?salary=${salary}&country=${encodeURIComponent(country)}&exp_level=${expLevel}`;
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      const box = document.getElementById('rp-pct-content');
+      if (data.error) {
+        box.innerHTML = `<span style="color:var(--warning);">⚠ ${data.error}</span>`; return;
+      }
+      if (!data.enough) {
+        box.innerHTML = `<span class="text-dim">ℹ ${data.message}</span>`; return;
+      }
+      const pct   = data.percentile;
+      const n     = data.sample_size.toLocaleString();
+      const med   = '$' + Number(data.median).toLocaleString();
+      const color = pct >= 75 ? '#10b981' : pct >= 50 ? '#4361ee' : pct >= 25 ? '#f59e0b' : '#ef4444';
+      box.innerHTML = `
+        <div style="margin-bottom:8px;font-size:14px;font-weight:600;color:${color};">
+          高于同条件 <span style="font-size:22px;">${pct}%</span> 的岗位
+        </div>
+        <div style="background:#e5e9f0;border-radius:4px;height:8px;overflow:hidden;margin-bottom:10px;">
+          <div style="width:${pct}%;height:100%;background:${color};border-radius:4px;
+                      transition:width .7s ease;"></div>
+        </div>
+        <div class="text-dim" style="font-size:12px;line-height:1.9;">
+          参照样本：${n} 条（${country} · ${expLevel}）&ensp;·&ensp;
+          中位薪资：${med}&ensp;·&ensp;
+          四分位：$${Number(data.p25).toLocaleString()} — $${Number(data.p75).toLocaleString()}
+        </div>`;
+    })
+    .catch(() => {
+      document.getElementById('rp-pct-content').innerHTML =
+        '<span class="text-dim">分位数请求失败</span>';
+    });
+}
+
+/* ── 职业模拟器预设 ──────────────────────────────────── */
+const PRESETS = {
+  fresh:  { experience_level:'EN', years_experience:1,  country:'CHINA',         company_size:'M', industry:'Technology', employment_type:'FT', education_required:'Bachelor', remote_ratio:'50',  skills:['Python','SQL','Git'] },
+  mid:    { experience_level:'MI', years_experience:5,  country:'UNITED STATES', company_size:'M', industry:'Technology', employment_type:'FT', education_required:'Bachelor', remote_ratio:'100', skills:['Python','SQL','TensorFlow','Docker','AWS'] },
+  senior: { experience_level:'SE', years_experience:8,  country:'UNITED STATES', company_size:'L', industry:'Finance',    employment_type:'FT', education_required:'Master',   remote_ratio:'50',  skills:['Python','TensorFlow','PyTorch','Kubernetes','MLOps','AWS','Deep Learning'] },
+  expert: { experience_level:'EX', years_experience:12, country:'SWITZERLAND',   company_size:'L', industry:'Technology', employment_type:'FT', education_required:'PhD',      remote_ratio:'100', skills:['Python','TensorFlow','PyTorch','Kubernetes','MLOps','Deep Learning','NLP','Statistics','Mathematics'] },
+};
+
+function loadPreset(key) {
+  const p  = PRESETS[key];
+  const fm = document.getElementById('pred-form');
+
+  const set = (name, val) => {
+    const el = fm.querySelector(`[name="${name}"]`);
+    if (el) el.value = val;
+  };
+  set('experience_level',    p.experience_level);
+  set('years_experience',    p.years_experience);
+  set('country',             p.country);
+  set('company_size',        p.company_size);
+  set('industry',            p.industry);
+  set('employment_type',     p.employment_type);
+  set('education_required',  p.education_required);
+  set('remote_ratio',        p.remote_ratio);
+
+  clearAll();
+  p.skills.forEach(s => {
+    selected.add(s);
+    document.querySelectorAll('.skill-tag').forEach(tag => {
+      if (tag.dataset.skill === s) tag.classList.add('selected');
+    });
+    addChip(s);
+  });
+  syncHidden();
+  updateFillProgress();
+  triggerPredict();
+}
+
+/* ── 填写进度 ─────────────────────────────────────────── */
+function updateFillProgress() {
+  const fm = document.getElementById('pred-form');
+  const get = name => (fm.querySelector(`[name="${name}"]`) || {}).value || '';
+
+  let filled = 0;
+  if (get('country'))           filled++;
+  if (get('experience_level'))  filled++;
+  const yr = parseFloat(get('years_experience'));
+  if (!isNaN(yr) && yr >= 0)    filled++;
+  if (selected.size >= 1)       filled++;
+  if (get('company_size'))      filled++;
+
+  document.getElementById('fill-count').textContent = filled;
+  document.getElementById('fill-bar').style.width   = (filled / 5 * 100) + '%';
+}
+
+/* ── 首次访问引导 ─────────────────────────────────────── */
+const GUIDE_STEPS = [
+  { targetName: 'experience_level', label: '步骤 1/3', text: '选择您的<b>经验等级</b>，这是影响薪资最大的单一因素（Gain=105.79）。' },
+  { targetId:   'chip-wrap',        label: '步骤 2/3', text: '切换到「技能选择」Tab，点击您掌握的<b>技能</b>，词向量将纳入预测模型。' },
+  { targetId:   'result-tab-btn',   label: '步骤 3/3', text: '字段变化后自动计算，点击「预测结果」Tab 查看<b>实时预测薪资</b>。', lastStep: true },
+];
+let guideStep = 0;
+
+function showGuide() {
+  if (localStorage.getItem('predict_guide_done')) return;
+  guideStep = 0;
+  renderGuideStep();
+  document.getElementById('guide-overlay').style.display = 'block';
+}
+
+function renderGuideStep() {
+  const step = GUIDE_STEPS[guideStep];
+  document.getElementById('guide-step-label').textContent = step.label;
+  document.getElementById('guide-tip-text').innerHTML     = step.text;
+  document.getElementById('guide-next-btn').textContent   = step.lastStep ? '完成 ✓' : '下一步 →';
+
+  let target = null;
+  if (step.targetName) target = document.querySelector(`[name="${step.targetName}"]`);
+  if (step.targetId)   target = document.getElementById(step.targetId);
+
+  const tip = document.getElementById('guide-tip');
+  if (target) {
+    const rect = target.getBoundingClientRect();
+    tip.style.top  = (rect.bottom + window.scrollY + 10) + 'px';
+    tip.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 240) + 'px';
+  }
+}
+
+function nextGuide() {
+  guideStep++;
+  if (guideStep >= GUIDE_STEPS.length) {
+    skipGuide(); return;
+  }
+  renderGuideStep();
+}
+
+function skipGuide() {
+  localStorage.setItem('predict_guide_done', '1');
+  document.getElementById('guide-overlay').style.display = 'none';
+}
+
+/* ── 字段说明折叠 ────────────────────────────────────── */
+function toggleFieldExp() {
+  const body  = document.getElementById('field-exp-body');
+  const arrow = document.getElementById('field-exp-arrow');
+  const open  = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  arrow.classList.toggle('open', !open);
+}
+
+/* ── 页面加载时立即触发首次预测 + 进度 + 引导 ─────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  updateFillProgress();
+  doPredict();
+  setTimeout(showGuide, 600);
+});
+</script>
+{% endblock %}

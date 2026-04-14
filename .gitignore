@@ -1,0 +1,85 @@
+.claude/
+# ─── Python ───────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+*.pyo
+
+# ─── 虚拟环境 ─────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ─── 模型文件（体积大，不上传）──────────────────────────────
+models/*.pkl
+models/*.keras
+models/*.zip
+models/*.h5
+models/rl_logs/
+models/shap_figures/
+# 如果想上传模型，注释掉上面几行，或用 Git LFS
+
+# ─── 数据文件（原始数据不上传）──────────────────────────────
+data/raw/
+data/interim/
+data/processed/*.parquet
+# CSV 和 JSON 可以上传（体积小）
+# 如不想上传任何数据，把下面一行取消注释：
+# data/
+
+# ─── Jupyter Notebook ────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ─── Docker 运行时产生的文件 ──────────────────────────────
+*.log
+docker-compose.override.yml
+
+# ─── 系统文件 ────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# ─── IDE 配置 ────────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.user
+
+# ─── 环境变量 / 密钥（绝对不上传）───────────────────────────
+.env
+.env.local
+*.key
+secrets/
+config/secrets.yml
+
+# ─── Spark 运行时目录 ─────────────────────────────────────
+spark-warehouse/
+derby.log
+metastore_db/
+
+# ─── TensorFlow / PyTorch 缓存 ───────────────────────────
+.keras/
+lightning_logs/
+
+# ─── Node（如果用了 docx 生成脚本）──────────────────────────
+node_modules/
+npm-debug.log*
+
+# ─── 临时文件 ────────────────────────────────────────────
+*.tmp
+*.bak
+*.orig
+temp/
+tmp/

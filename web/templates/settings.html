@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+{% block title %}AI 设置 — AI薪资预测系统{% endblock %}
+{% block page_title %}AI 助手设置{% endblock %}
+{% block page_sub %}配置您的 API Key 与模型厂商{% endblock %}
+
+{% block content %}
+<style>
+.provider-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.provider-card {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: var(--transition-ui);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  user-select: none;
+}
+.provider-card:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.provider-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 600;
+}
+.provider-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.key-input-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.key-input-wrap input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-1);
+  background: var(--surface);
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  font-family: monospace;
+}
+.key-input-wrap input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(67,97,238,.12);
+}
+.test-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-ui);
+  white-space: nowrap;
+}
+.test-btn:hover { background: var(--accent); color: #fff; }
+.test-btn:disabled { opacity: .5; cursor: not-allowed; }
+.eye-btn {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 14px;
+  cursor: pointer;
+  transition: var(--transition-ui);
+}
+.eye-btn:hover { border-color: var(--accent); color: var(--accent); }
+.test-result {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  display: none;
+}
+.test-result.ok   { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+.test-result.fail { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+.security-notice {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  font-size: 12px;
+  color: #92400e;
+  line-height: 1.8;
+  margin-top: 20px;
+}
+</style>
+
+<div class="page-card" id="settings-card" style="overflow-y:auto;">
+  <div style="padding:24px 28px;max-width:700px;">
+
+    <!-- 厂商选择 -->
+    <div class="card-title"><span class="card-title-dot"></span>选择模型厂商</div>
+    <div class="provider-grid" id="provider-grid">
+      <div class="provider-card" data-id="openai"    data-url="https://api.openai.com/v1"                              data-model="gpt-4o-mini"              onclick="selectProvider(this)">
+        <span class="provider-icon">🤖</span>OpenAI
+      </div>
+      <div class="provider-card" data-id="anthropic" data-url="https://api.anthropic.com"                              data-model="claude-sonnet-4-6"        onclick="selectProvider(this)">
+        <span class="provider-icon">✦</span>Anthropic
+      </div>
+      <div class="provider-card" data-id="deepseek"  data-url="https://api.deepseek.com/v1"                           data-model="deepseek-chat"            onclick="selectProvider(this)">
+        <span class="provider-icon">🔍</span>DeepSeek
+      </div>
+      <div class="provider-card" data-id="qwen"      data-url="https://dashscope.aliyuncs.com/compatible-mode/v1"     data-model="qwen-max"                 onclick="selectProvider(this)">
+        <span class="provider-icon">☁</span>通义千问
+      </div>
+      <div class="provider-card" data-id="kimi"      data-url="https://api.moonshot.cn/v1"                            data-model="moonshot-v1-8k"           onclick="selectProvider(this)">
+        <span class="provider-icon">🌙</span>Kimi
+      </div>
+      <div class="provider-card" data-id="chatglm"   data-url="https://open.bigmodel.cn/api/paas/v4"                  data-model="glm-4-flash"              onclick="selectProvider(this)">
+        <span class="provider-icon">💬</span>ChatGLM
+      </div>
+      <div class="provider-card" data-id="groq"      data-url="https://api.groq.com/openai/v1"                        data-model="llama-3.3-70b-versatile"  onclick="selectProvider(this)">
+        <span class="provider-icon">⚡</span>Groq (免费)
+      </div>
+      <div class="provider-card" data-id="custom"    data-url=""                                                       data-model=""                         onclick="selectProvider(this)">
+        <span class="provider-icon">🔧</span>自定义
+      </div>
+    </div>
+
+    <!-- API Key -->
+    <div class="form-group" style="margin-bottom:16px;">
+      <label style="font-size:12px;color:var(--text-2);font-weight:500;margin-bottom:6px;display:block;">
+        API Key
+      </label>
+      <div class="key-input-wrap">
+        <input type="password" id="api-key-input" placeholder="请输入您的 API Key…" autocomplete="off">
+        <button class="eye-btn" onclick="toggleKeyVisible()" title="显示/隐藏">👁</button>
+        <button class="test-btn" id="test-btn" onclick="testConnection()">测试连接</button>
+      </div>
+      <div class="test-result" id="test-result"></div>
+    </div>
+
+    <!-- Base URL -->
+    <div class="form-group" style="margin-bottom:16px;">
+      <label style="font-size:12px;color:var(--text-2);font-weight:500;margin-bottom:6px;display:block;">
+        Base URL
+      </label>
+      <input type="text" id="base-url-input"
+             style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-1);background:var(--surface);outline:none;"
+             placeholder="https://api.openai.com/v1">
+    </div>
+
+    <!-- 模型名 -->
+    <div class="form-group" style="margin-bottom:24px;">
+      <label style="font-size:12px;color:var(--text-2);font-weight:500;margin-bottom:6px;display:block;">
+        模型名称
+      </label>
+      <input type="text" id="model-input"
+             style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-1);background:var(--surface);outline:none;"
+             placeholder="gpt-4o-mini">
+    </div>
+
+    <!-- 操作按钮 -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn" onclick="saveConfig()">保存到本地</button>
+      <button class="btn btn-outline" onclick="clearConfig()">清除配置</button>
+      <a href="/advice" class="btn btn-outline">← 返回职业建议</a>
+    </div>
+
+    <!-- 安全提示 -->
+    <div class="security-notice">
+      ⚠ <b>隐私说明</b>：您的 API Key 仅保存在您的浏览器本地（localStorage），
+      不会上传到服务器。每次对话时，Key 由您的浏览器直接发送给 AI 服务商（经由本系统后端转发，后端不存储）。
+    </div>
+
+    <!-- 已保存状态 -->
+    <div id="saved-status" style="margin-top:14px;font-size:12px;color:var(--success);display:none;">
+      ✓ 配置已保存，可前往「职业建议」使用 AI 顾问
+    </div>
+
+  </div>
+</div>
+
+<script>
+const PROVIDER_MODELS = {
+  openai:    ['gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo'],
+  anthropic: ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5-20251001'],
+  deepseek:  ['deepseek-chat', 'deepseek-reasoner'],
+  qwen:      ['qwen-max', 'qwen-turbo', 'qwen-plus'],
+  kimi:      ['moonshot-v1-8k', 'moonshot-v1-32k'],
+  chatglm:   ['glm-4', 'glm-4-flash'],
+  groq:      ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768'],
+  custom:    [],
+};
+
+function selectProvider(el) {
+  document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+
+  const url   = el.dataset.url;
+  const model = el.dataset.model;
+  const id    = el.dataset.id;
+
+  document.getElementById('base-url-input').value = url;
+  document.getElementById('model-input').value    = model;
+
+  clearTestResult();
+}
+
+function toggleKeyVisible() {
+  const inp = document.getElementById('api-key-input');
+  inp.type  = inp.type === 'password' ? 'text' : 'password';
+}
+
+function clearTestResult() {
+  const el = document.getElementById('test-result');
+  el.style.display = 'none';
+  el.className = 'test-result';
+  el.textContent = '';
+}
+
+function testConnection() {
+  const key     = document.getElementById('api-key-input').value.trim();
+  const baseUrl = document.getElementById('base-url-input').value.trim();
+  const model   = document.getElementById('model-input').value.trim();
+  const btn     = document.getElementById('test-btn');
+  const res     = document.getElementById('test-result');
+
+  if (!key) { alert('请先填写 API Key'); return; }
+
+  btn.disabled    = true;
+  btn.textContent = '测试中…';
+  res.style.display = 'none';
+
+  fetch('/api/validate-key', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ api_key: key, base_url: baseUrl, model: model })
+  })
+  .then(r => r.json())
+  .then(data => {
+    res.style.display = 'block';
+    if (data.ok) {
+      res.className   = 'test-result ok';
+      res.textContent = '✓ 连接成功，API Key 有效！';
+    } else {
+      res.className   = 'test-result fail';
+      res.textContent = '✗ 连接失败：' + (data.error || '未知错误');
+    }
+  })
+  .catch(err => {
+    res.style.display = 'block';
+    res.className   = 'test-result fail';
+    res.textContent = '✗ 请求失败：' + err;
+  })
+  .finally(() => {
+    btn.disabled    = false;
+    btn.textContent = '测试连接';
+  });
+}
+
+function saveConfig() {
+  const key     = document.getElementById('api-key-input').value.trim();
+  const baseUrl = document.getElementById('base-url-input').value.trim();
+  const model   = document.getElementById('model-input').value.trim();
+
+  if (!key)     { alert('请填写 API Key'); return; }
+  if (!baseUrl) { alert('请填写 Base URL'); return; }
+  if (!model)   { alert('请填写模型名称'); return; }
+
+  localStorage.setItem('ai_config', JSON.stringify({ api_key: key, base_url: baseUrl, model: model }));
+
+  const s = document.getElementById('saved-status');
+  s.style.display = 'block';
+  setTimeout(() => { s.style.display = 'none'; }, 4000);
+}
+
+function clearConfig() {
+  localStorage.removeItem('ai_config');
+  document.getElementById('api-key-input').value = '';
+  document.getElementById('base-url-input').value = '';
+  document.getElementById('model-input').value = '';
+  document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('selected'));
+  clearTestResult();
+  alert('配置已清除');
+}
+
+// 页面加载时恢复已保存配置
+(function restoreConfig() {
+  const raw = localStorage.getItem('ai_config');
+  if (!raw) return;
+  try {
+    const cfg = JSON.parse(raw);
+    document.getElementById('api-key-input').value  = cfg.api_key  || '';
+    document.getElementById('base-url-input').value = cfg.base_url || '';
+    document.getElementById('model-input').value    = cfg.model    || '';
+
+    // 高亮匹配的厂商
+    document.querySelectorAll('.provider-card').forEach(c => {
+      if (cfg.base_url && c.dataset.url === cfg.base_url) c.classList.add('selected');
+    });
+  } catch(e) {}
+})();
+</script>
+{% endblock %}

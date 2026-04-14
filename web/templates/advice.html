@@ -1,0 +1,599 @@
+{% extends "base.html" %}
+{% block title %}职业建议 — AI薪资预测系统{% endblock %}
+{% block page_title %}职业建议{% endblock %}
+{% block page_sub %}基于岗位数据的个性化职业决策支持{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+<style>
+.advice-layout {
+  display: grid;
+  grid-template-columns: 55% 1fr;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .advice-layout { grid-template-columns: 1fr; }
+}
+.advice-placeholder-wrap {
+  text-align: center;
+  padding: 44px 20px;
+  color: var(--text-3);
+}
+.advice-placeholder-wrap .ph-icon { font-size: 38px; margin-bottom: 12px; }
+</style>
+
+<div class="page-card" id="advice-card">
+
+  <div class="tab-nav">
+    <button class="tab-btn active" data-target="tab-form"
+      onclick="switchTab('advice-card','tab-form')">信息填写</button>
+    <button class="tab-btn" data-target="tab-result"
+      onclick="switchTab('advice-card','tab-result',function(){ladderChart&&ladderChart.resize();})">AI建议</button>
+    <button class="tab-btn" data-target="tab-chat"
+      onclick="switchTab('advice-card','tab-chat')">AI对话</button>
+  </div>
+
+  <!-- Tab 1: 信息填写 -->
+  <div class="tab-pane active" id="tab-form">
+    <div class="card card-primary">
+      <div class="card-title"><span class="card-title-dot"></span>填写您的情况</div>
+
+      <div class="form-grid" id="advice-form">
+        <div class="form-group">
+          <label>当前经验等级</label>
+          <select id="a-exp">
+            <option value="EN">入门级 EN</option>
+            <option value="MI" selected>中级 MI</option>
+            <option value="SE">高级 SE</option>
+            <option value="EX">专家级 EX</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>当前年薪（美元）</label>
+          <input type="number" id="a-sal" value="80000" min="10000" max="500000" step="1000">
+        </div>
+
+        <div class="form-group">
+          <label>所在国家</label>
+          <select id="a-country">
+            {% for val in ['UNITED STATES','SWITZERLAND','NORWAY','DENMARK','CANADA','GERMANY',
+                           'UNITED KINGDOM','CHINA','INDIA','SOUTH KOREA','JAPAN','AUSTRALIA'] %}
+            <option value="{{ val }}">{{ val.title() }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>所属行业</label>
+          <select id="a-industry">
+            {% for v in ['Technology','Finance','Healthcare','Consulting','Education','Media','Retail','Transportation'] %}
+            <option value="{{ v }}">{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>当前技能数量</label>
+          <input type="number" id="a-skills" value="3" min="1" max="15">
+        </div>
+
+        <div class="form-group">
+          <label>学历</label>
+          <select id="a-edu">
+            <option value="Associate">大专</option>
+            <option value="Bachelor" selected>本科</option>
+            <option value="Master">硕士</option>
+            <option value="PhD">博士</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="mt-20">
+        <button class="btn" onclick="getAdvice()">生成职业建议</button>
+      </div>
+    </div>
+  </div><!-- /tab-form -->
+
+  <!-- Tab 2: AI建议 -->
+  <div class="tab-pane" id="tab-result">
+    <div class="advice-layout">
+
+      <!-- 左：阶梯图 -->
+      <div>
+        <div class="card card-secondary">
+          <div class="card-title"><span class="card-title-dot"></span>各经验等级全球AI薪资中位数参考</div>
+          <div class="chart-box" id="chart-ladder"></div>
+        </div>
+      </div>
+
+      <!-- 右：结果面板 -->
+      <div>
+        <div class="card card-primary" id="advice-panel">
+
+          <!-- 占位 -->
+          <div id="advice-placeholder">
+            <div class="advice-placeholder-wrap">
+              <div class="ph-icon">💼</div>
+              <div style="font-size:14px;font-weight:600;color:var(--text-2);margin-bottom:8px;">
+                返回「信息填写」生成分析报告
+              </div>
+              <div style="font-size:12px;">点击「生成职业建议」查看分析</div>
+            </div>
+          </div>
+
+          <!-- 结果 -->
+          <div id="advice-result" style="display:none;">
+
+            <!-- 薪资对比 -->
+            <div class="metric-row" style="margin-bottom:16px;">
+              <div class="metric-card card-primary">
+                <div class="metric-label">您的薪资</div>
+                <div class="metric-value" id="r-your-sal" style="font-size:22px;">—</div>
+              </div>
+              <div class="metric-card card-primary">
+                <div class="metric-label">地区市场基准</div>
+                <div class="metric-value" id="r-benchmark" style="font-size:22px;color:var(--warning);">—</div>
+              </div>
+            </div>
+
+            <!-- 建议列表 -->
+            <div class="card-title" style="margin-bottom:14px;">
+              <span class="card-title-dot"></span>职业决策分析报告
+            </div>
+
+            <div class="advice-item">
+              <div class="advice-label">经验晋升建议</div>
+              <div id="r-exp-text" class="text-muted">—</div>
+            </div>
+            <div class="advice-item">
+              <div class="advice-label">薪资地区对标</div>
+              <div id="r-geo-text" class="text-muted">—</div>
+            </div>
+            <div class="advice-item">
+              <div class="advice-label">技能提升方向</div>
+              <div id="r-skill-text" class="text-muted">—</div>
+            </div>
+            <div class="advice-item" style="border-left-color:var(--success);">
+              <div class="advice-label" style="color:var(--success);">薪资谈判策略</div>
+              <div id="r-neg-text" class="text-muted">—</div>
+            </div>
+
+            <div class="mt-16" style="display:flex;gap:10px;flex-wrap:wrap;">
+              <a href="/predict" class="btn btn-sm">用预测模型精确计算薪资 →</a>
+              <a href="/trend"   class="btn btn-outline btn-sm">查看薪资趋势</a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /tab-result -->
+
+  <!-- Tab 3: AI对话 -->
+  <div class="tab-pane" id="tab-chat">
+    <style>
+    .chat-wrap {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 230px);
+      min-height: 400px;
+    }
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--accent-light);
+      border-radius: var(--radius) var(--radius) 0 0;
+      flex-shrink: 0;
+    }
+    .chat-header-info { font-size: 12px; color: var(--text-2); }
+    .chat-model-badge {
+      font-size: 11px;
+      background: var(--surface);
+      border: 1px solid var(--accent-mid);
+      color: var(--accent);
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .chat-bubble {
+      max-width: 80%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .chat-bubble.user {
+      align-self: flex-end;
+      background: var(--accent);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .chat-bubble.ai {
+      align-self: flex-start;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-1);
+      border-bottom-left-radius: 4px;
+    }
+    .chat-bubble.ai.typing::after {
+      content: '▌';
+      animation: blink .7s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    .chat-bubble.ai p  { margin: 0 0 6px; }
+    .chat-bubble.ai p:last-child { margin-bottom: 0; }
+    .chat-bubble.ai ul, .chat-bubble.ai ol { padding-left: 18px; margin: 4px 0 6px; }
+    .chat-bubble.ai li { margin-bottom: 3px; }
+    .chat-bubble.ai strong { color: var(--accent); font-weight: 600; }
+    .chat-bubble.ai code {
+      background: #e8ecf8; padding: 1px 5px;
+      border-radius: 3px; font-size: 12px; font-family: monospace;
+    }
+    .chat-suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 8px 16px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .suggest-btn {
+      font-size: 11px;
+      padding: 4px 11px;
+      border: 1px solid var(--accent-mid);
+      border-radius: 20px;
+      background: var(--surface);
+      color: var(--accent);
+      cursor: pointer;
+      transition: var(--transition-ui);
+    }
+    .suggest-btn:hover { background: var(--accent); color: #fff; }
+    .chat-input-row {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .chat-input {
+      flex: 1;
+      padding: 9px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+      resize: none;
+      font-family: inherit;
+    }
+    .chat-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(67,97,238,.12);
+    }
+    .chat-send-btn {
+      padding: 9px 20px;
+      background: var(--accent-grad);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition-ui);
+      white-space: nowrap;
+    }
+    .chat-send-btn:hover { opacity: .88; }
+    .chat-send-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .no-config-banner {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      font-size: 13px;
+      color: #92400e;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    </style>
+
+    <!-- 未配置提示 -->
+    <div id="no-config-banner" class="no-config-banner" style="display:none;">
+      <span>⚠ 尚未配置 API Key，AI 顾问功能不可用。</span>
+      <a href="/settings" class="btn btn-sm" style="white-space:nowrap;">前往设置 →</a>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div class="chat-wrap">
+        <!-- 顶部信息栏 -->
+        <div class="chat-header">
+          <div>
+            <span style="font-size:14px;font-weight:600;color:var(--text-1);">🤖 AI 就业顾问</span>
+            <div class="chat-header-info" id="chat-profile-summary">请先在「信息填写」Tab 填写您的职业信息</div>
+          </div>
+          <span class="chat-model-badge" id="chat-model-badge">未配置</span>
+        </div>
+
+        <!-- 消息区 -->
+        <div class="chat-messages" id="chat-messages">
+          <div class="chat-bubble ai">
+            您好！我是 AI 就业顾问。请先在左侧「信息填写」Tab 生成职业建议，然后在这里与我深入交流——例如询问换国家薪资、技能提升路径、谈判技巧等。
+          </div>
+        </div>
+
+        <!-- 推荐问题 -->
+        <div class="chat-suggestions">
+          <span style="font-size:11px;color:var(--text-3);margin-right:4px;">推荐：</span>
+          <button class="suggest-btn" onclick="sendSuggestion('如果我去瑞士工作，薪资能提升多少？')">去瑞士工作？</button>
+          <button class="suggest-btn" onclick="sendSuggestion('哪些技能可以最快提升我的薪资？')">最快提薪技能？</button>
+          <button class="suggest-btn" onclick="sendSuggestion('给我一些薪资谈判的具体话术')">谈判话术</button>
+          <button class="suggest-btn" onclick="sendSuggestion('我应该如何规划未来3年的职业路径？')">3年规划</button>
+        </div>
+
+        <!-- 输入行 -->
+        <div class="chat-input-row">
+          <textarea class="chat-input" id="chat-input" rows="1"
+                    placeholder="输入您的问题，按 Enter 发送（Shift+Enter 换行）…"
+                    onkeydown="handleChatKey(event)"></textarea>
+          <button class="chat-send-btn" id="chat-send-btn" onclick="sendChat()">发送</button>
+        </div>
+      </div>
+    </div>
+  </div><!-- /tab-chat -->
+
+</div><!-- /page-card -->
+
+<script>
+const C_ACCENT = '#4361ee';
+const C_BORDER = '#e5e9f0';
+const C_TEXT2  = '#64748b';
+
+const ladderChart = echarts.init(document.getElementById('chart-ladder'));
+
+const ladderColors = ['#c7d2fe','#a5b4fc','#6366f1','#4361ee'];
+ladderChart.setOption({
+  tooltip: {
+    trigger:'axis', axisPointer:{type:'shadow'},
+    backgroundColor:'#fff', borderColor:C_BORDER,
+    textStyle:{color:'#1e293b',fontSize:12},
+    formatter: p => `<b>${p[0].name}</b><br/>中位薪资：$${p[0].value.toLocaleString()}`
+  },
+  grid: { left:50, right:24, top:20, bottom:28 },
+  xAxis: {
+    type:'category',
+    data:['入门级 EN','中级 MI','高级 SE','专家级 EX'],
+    axisLine:{lineStyle:{color:C_BORDER}}, axisTick:{show:false},
+    axisLabel:{color:C_TEXT2,fontSize:12}
+  },
+  yAxis: {
+    type:'value',
+    axisLine:{show:false}, axisTick:{show:false},
+    axisLabel:{color:C_TEXT2,fontSize:11,formatter:v=>'$'+(v/1000).toFixed(0)+'k'},
+    splitLine:{lineStyle:{color:C_BORDER,type:'dashed'}}
+  },
+  series: [{
+    type:'bar', barWidth:'40%',
+    data: [
+      {value:72000,  itemStyle:{color:ladderColors[0],borderRadius:[4,4,0,0]}},
+      {value:98000,  itemStyle:{color:ladderColors[1],borderRadius:[4,4,0,0]}},
+      {value:128000, itemStyle:{color:ladderColors[2],borderRadius:[4,4,0,0]}},
+      {value:168000, itemStyle:{color:ladderColors[3],borderRadius:[4,4,0,0]}},
+    ],
+    label:{show:true,position:'top',
+           formatter:p=>'$'+(p.value/1000).toFixed(0)+'k',
+           fontSize:12,color:C_TEXT2}
+  }]
+});
+
+function getAdvice() {
+  const payload = {
+    experience_level:   document.getElementById('a-exp').value,
+    current_salary:     parseInt(document.getElementById('a-sal').value),
+    country:            document.getElementById('a-country').value,
+    industry:           document.getElementById('a-industry').value,
+    skill_count:        parseInt(document.getElementById('a-skills').value),
+    education_required: document.getElementById('a-edu').value
+  };
+
+  fetch('/api/advice', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('r-your-sal').textContent   = data.your_salary;
+    document.getElementById('r-benchmark').textContent  = data.benchmark_salary;
+    document.getElementById('r-exp-text').textContent   = data.exp_advice;
+    document.getElementById('r-geo-text').textContent   = data.geo_advice;
+    document.getElementById('r-skill-text').textContent = data.skill_advice;
+    document.getElementById('r-neg-text').textContent   = data.negotiate;
+
+    document.getElementById('advice-placeholder').style.display = 'none';
+    document.getElementById('advice-result').style.display      = 'block';
+
+    switchTab('advice-card', 'tab-result', function(){ ladderChart && ladderChart.resize(); });
+  })
+  .catch(err => alert('请求失败：' + err));
+}
+
+window.addEventListener('resize', () => ladderChart.resize());
+
+/* ── AI 顾问对话 ───────────────────────────────────────── */
+let chatHistory = [];
+let _chatBusy   = false;
+
+function getChatConfig() {
+  try { return JSON.parse(localStorage.getItem('ai_config') || '{}'); }
+  catch(e) { return {}; }
+}
+
+function getChatProfile() {
+  return {
+    exp_level: document.getElementById('a-exp')?.value     || '',
+    country:   document.getElementById('a-country')?.value || '',
+    years:     '',
+    skills:    document.getElementById('a-skills')?.value  || '',
+    industry:  document.getElementById('a-industry')?.value|| '',
+    salary:    document.getElementById('r-your-sal')?.textContent?.replace(/[^0-9]/g,'') || ''
+  };
+}
+
+// 切换到 tab-chat 时更新状态
+document.querySelector('[data-target="tab-chat"]')?.addEventListener('click', function() {
+  const cfg = getChatConfig();
+  const badge = document.getElementById('chat-model-badge');
+  const banner = document.getElementById('no-config-banner');
+  const sendBtn = document.getElementById('chat-send-btn');
+  const inp = document.getElementById('chat-input');
+
+  if (cfg.api_key) {
+    badge.textContent = cfg.model || '已配置';
+    banner.style.display = 'none';
+    sendBtn.disabled = false;
+    inp.disabled = false;
+  } else {
+    badge.textContent = '未配置';
+    banner.style.display = 'flex';
+    sendBtn.disabled = true;
+    inp.disabled = true;
+  }
+
+  const p = getChatProfile();
+  const summary = [p.exp_level, p.country, p.industry].filter(Boolean).join(' · ');
+  if (summary) document.getElementById('chat-profile-summary').textContent = summary;
+});
+
+function appendBubble(role, text) {
+  const box = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `chat-bubble ${role}`;
+  if (role === 'ai' && text) {
+    div.innerHTML = marked.parse(text);
+  } else {
+    div.textContent = text;
+  }
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return div;
+}
+
+function sendSuggestion(text) {
+  const inp = document.getElementById('chat-input');
+  inp.value = text;
+  sendChat();
+}
+
+function handleChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+}
+
+function sendChat() {
+  if (_chatBusy) return;
+  const cfg = getChatConfig();
+  if (!cfg.api_key) { alert('请先在「AI 设置」中配置 API Key'); return; }
+
+  const inp = document.getElementById('chat-input');
+  const msg = inp.value.trim();
+  if (!msg) return;
+
+  inp.value = '';
+  _chatBusy = true;
+  document.getElementById('chat-send-btn').disabled = true;
+
+  appendBubble('user', msg);
+  chatHistory.push({ role: 'user', content: msg });
+
+  const aiBubble = appendBubble('ai', '');
+  aiBubble.classList.add('typing');
+  let fullText = '';
+
+  const payload = {
+    api_key:  cfg.api_key,
+    base_url: cfg.base_url,
+    model:    cfg.model,
+    message:  msg,
+    history:  chatHistory.slice(-10),
+    profile:  getChatProfile()
+  };
+
+  fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).then(resp => {
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+
+    function read() {
+      reader.read().then(({ done, value }) => {
+        if (done) {
+          aiBubble.classList.remove('typing');
+          chatHistory.push({ role: 'assistant', content: fullText });
+          _chatBusy = false;
+          document.getElementById('chat-send-btn').disabled = false;
+          // 登录用户保存对话记录
+          fetch('/api/chat/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messages: [
+                { role: 'user',      content: msg },
+                { role: 'assistant', content: fullText }
+              ]
+            })
+          }).catch(() => {});
+          return;
+        }
+        const chunk = decoder.decode(value, { stream: true });
+        chunk.split('\n').forEach(line => {
+          if (!line.startsWith('data: ')) return;
+          const raw = line.slice(6).trim();
+          if (raw === '[DONE]') return;
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed.error) {
+              aiBubble.textContent = '错误：' + parsed.error;
+              return;
+            }
+            const delta = parsed?.choices?.[0]?.delta?.content || '';
+            if (delta) {
+              fullText += delta;
+              aiBubble.innerHTML = marked.parse(fullText);
+              document.getElementById('chat-messages').scrollTop =
+                document.getElementById('chat-messages').scrollHeight;
+            }
+          } catch(e) {}
+        });
+        read();
+      });
+    }
+    read();
+  }).catch(err => {
+    aiBubble.classList.remove('typing');
+    aiBubble.textContent = '请求失败：' + err;
+    _chatBusy = false;
+    document.getElementById('chat-send-btn').disabled = false;
+  });
+}
+</script>
+{% endblock %}

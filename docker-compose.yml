@@ -1,0 +1,26 @@
+# docker-compose.yml
+# Web服务专用 —— 用户使用这个启动系统
+# 使用方式：docker compose up -d
+#
+# 前提：models/ 和 data/processed/ 目录下已有训练好的模型文件
+# 用户不需要安装 Python、不需要跑 Spark、不需要训练模型
+# 只需要安装 Docker Desktop，执行一条命令即可启动
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-salary-web
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./models:/app/models        # 模型文件（只读挂载）
+      - ./data:/app/data            # 数据文件（monthly_avg.csv 等）
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+     
+      - TF_ENABLE_ONEDNN_OPTS=0        # 关闭 oneDNN 提示
+      - TF_CPP_MIN_LOG_LEVEL=3         # 只显示 ERROR 级别的 TF 日志
+    restart: unless-stopped

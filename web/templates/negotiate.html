@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+{% block title %}薪资谈判模拟器 — AI薪资预测系统{% endblock %}
+{% block page_title %}薪资谈判模拟器{% endblock %}
+{% block page_sub %}基于强化学习PPO算法 · 模拟真实谈判博弈{% endblock %}
+
+{% block content %}
+<div class="page-card" id="neg-card">
+  <div class="tab-nav">
+    <button class="tab-btn active" data-target="tab-neg-main"
+      onclick="switchTab('neg-card','tab-neg-main')">谈判模拟</button>
+    <button class="tab-btn" data-target="tab-neg-about"
+      onclick="switchTab('neg-card','tab-neg-about')">算法说明</button>
+  </div>
+
+  <!-- Tab 1: 谈判模拟 -->
+  <div class="tab-pane active" id="tab-neg-main">
+    <div class="grid-2" style="align-items:start;">
+
+      <!-- 左侧：参数设置 -->
+      <div>
+        <div class="card card-primary">
+          <div class="card-title"><span class="card-title-dot"></span>设置谈判参数</div>
+          <div class="form-grid" style="grid-template-columns:1fr;">
+
+            <div class="form-group">
+              <label>市场基准薪资（USD/年）</label>
+              <input type="number" id="market-salary" value="119000" min="30000" max="500000" step="1000">
+            </div>
+
+            <div class="form-group">
+              <label>经验等级</label>
+              <select id="exp-level">
+                <option value="0">初级（Entry Level）</option>
+                <option value="1">中级（Mid Level）</option>
+                <option value="2" selected>高级（Senior）</option>
+                <option value="3">专家（Principal / Staff）</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>公司规模</label>
+              <select id="company-size">
+                <option value="0">小型（&lt;50人）</option>
+                <option value="1" selected>中型（50-250人）</option>
+                <option value="2">大型（250人以上）</option>
+              </select>
+            </div>
+
+          </div>
+
+          <div style="margin-top:20px;">
+            <button class="btn" id="start-btn" onclick="startNegotiation()">
+              <span id="btn-icon">▶</span> 开始谈判
+            </button>
+          </div>
+
+          <!-- 市场参照 -->
+          <div id="market-ref" style="display:none;margin-top:16px;padding:12px 14px;
+               background:var(--accent-light);border:1px solid var(--accent-mid);
+               border-radius:var(--radius-sm);font-size:12px;line-height:2;">
+            <div>市场基准 <span id="ref-market" style="float:right;font-weight:700;color:var(--accent);"></span></div>
+            <div>HR预算上限（估算）<span id="ref-budget" style="float:right;font-weight:700;color:#7b5ea7;"></span></div>
+            <div>最终成交价 <span id="ref-final" style="float:right;font-weight:700;color:var(--success);"></span></div>
+          </div>
+        </div>
+
+        <!-- 结果摘要卡片（谈判后显示） -->
+        <div id="result-card" style="display:none;">
+          <div class="card card-secondary">
+            <div class="card-title"><span class="card-title-dot"></span>谈判结果</div>
+            <div id="result-salary" style="font-size:36px;font-weight:800;color:var(--accent);line-height:1.1;"></div>
+            <div id="result-vs" style="font-size:13px;margin-top:6px;"></div>
+            <div id="result-text" style="font-size:13px;color:var(--text-2);margin-top:10px;line-height:1.7;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右侧：谈判过程 -->
+      <div>
+        <div class="card card-secondary" style="min-height:420px;">
+          <div class="card-title" style="justify-content:space-between;">
+            <span style="display:flex;align-items:center;gap:8px;">
+              <span class="card-title-dot"></span>谈判过程
+            </span>
+            <span id="round-badge" style="font-size:11px;color:var(--text-3);font-weight:400;"></span>
+          </div>
+
+          <!-- 空态 -->
+          <div id="neg-empty" style="text-align:center;padding:60px 20px;color:var(--text-3);">
+            <div style="font-size:40px;margin-bottom:12px;">💼</div>
+            <div style="font-size:14px;font-weight:500;color:var(--text-2);">设置参数后点击「开始谈判」</div>
+            <div style="font-size:12px;margin-top:6px;">RL模型将模拟最优谈判策略</div>
+          </div>
+
+          <!-- 谈判轮次列表 -->
+          <div id="rounds-list" style="display:none;"></div>
+
+          <!-- 进度条可视化（谈判中显示） -->
+          <div id="progress-vis" style="display:none;margin-top:16px;">
+            <div style="font-size:11px;color:var(--text-3);margin-bottom:6px;">出价对比（相对市场基准）</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-2);margin-bottom:3px;">
+                  <span>你的出价</span><span id="bar-candidate-val"></span>
+                </div>
+                <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;">
+                  <div id="bar-candidate" style="height:100%;background:var(--accent-grad);border-radius:4px;transition:width .5s ease;"></div>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-2);margin-bottom:3px;">
+                  <span>HR出价</span><span id="bar-hr-val"></span>
+                </div>
+                <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;">
+                  <div id="bar-hr" style="height:100%;background:linear-gradient(90deg,#f59e0b,#fbbf24);border-radius:4px;transition:width .5s ease;"></div>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);margin-bottom:3px;">
+                  <span>市场基准</span><span id="bar-market-val"></span>
+                </div>
+                <div style="background:var(--border);border-radius:4px;height:4px;overflow:hidden;">
+                  <div style="height:100%;background:#94a3b8;width:60%;border-radius:4px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /tab-neg-main -->
+
+  <!-- Tab 2: 算法说明 -->
+  <div class="tab-pane" id="tab-neg-about">
+    <div class="card card-secondary">
+      <div class="card-title"><span class="card-title-dot"></span>强化学习算法原理</div>
+      <div style="font-size:13px;color:var(--text-2);line-height:2;">
+        <p style="margin-bottom:12px;">本模拟器使用 <strong style="color:var(--accent)">PPO（Proximal Policy Optimization）</strong> 算法训练，在自定义 Gymnasium 环境中通过自博弈学习最优谈判策略。</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+          <div style="padding:14px 16px;background:var(--accent-light);border-radius:var(--radius-sm);border:1px solid var(--accent-mid);">
+            <div style="font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.5px;margin-bottom:8px;">状态空间（5维）</div>
+            <div style="font-size:12px;line-height:2.2;">
+              当前轮次 / 最大轮次<br>
+              求职者出价 / 市场基准<br>
+              HR出价 / 市场基准<br>
+              经验等级（归一化）<br>
+              公司规模（归一化）
+            </div>
+          </div>
+          <div style="padding:14px 16px;background:#fff7ed;border-radius:var(--radius-sm);border:1px solid #fed7aa;">
+            <div style="font-size:11px;font-weight:700;color:#ea580c;letter-spacing:.5px;margin-bottom:8px;">动作空间（3个离散动作）</div>
+            <div style="font-size:12px;line-height:2.2;">
+              <span style="color:var(--success);font-weight:600;">0 — 坚持报价</span><br>
+              <span style="color:var(--warning);font-weight:600;">1 — 小幅退让（-3%）</span><br>
+              <span style="color:var(--danger);font-weight:600;">2 — 大幅退让（-8%）</span>
+            </div>
+          </div>
+          <div style="padding:14px 16px;background:#f0fdf4;border-radius:var(--radius-sm);border:1px solid #bbf7d0;">
+            <div style="font-size:11px;font-weight:700;color:#16a34a;letter-spacing:.5px;margin-bottom:8px;">奖励函数</div>
+            <div style="font-size:12px;line-height:2;">
+              成交时：<code style="background:#e2e8f0;padding:1px 5px;border-radius:3px;">final / market - 1.0</code><br>
+              未成交每轮：<code style="background:#e2e8f0;padding:1px 5px;border-radius:3px;">-0.01</code><br>
+              （鼓励高薪成交，惩罚拖延）
+            </div>
+          </div>
+          <div style="padding:14px 16px;background:#fdf4ff;border-radius:var(--radius-sm);border:1px solid #e9d5ff;">
+            <div style="font-size:11px;font-weight:700;color:#7c3aed;letter-spacing:.5px;margin-bottom:8px;">训练配置</div>
+            <div style="font-size:12px;line-height:2;">
+              算法：PPO（MlpPolicy）<br>
+              训练步数：500,000 步<br>
+              并行环境：8 个<br>
+              训练样本：随机化薪资区间
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /tab-neg-about -->
+
+</div><!-- /page-card -->
+
+<style>
+.round-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  background: var(--surface);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .35s ease, transform .35s ease;
+}
+.round-card.visible { opacity: 1; transform: translateY(0); }
+.round-card.done-card {
+  background: var(--accent-light);
+  border-color: var(--accent-mid);
+}
+.round-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.round-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-light);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.round-action {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.action-0 { color: var(--success); background: #d1fae5; }
+.action-1 { color: var(--warning); background: #fef3c7; }
+.action-2 { color: var(--danger);  background: #fee2e2; }
+.round-offers {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.offer-you  { color: var(--accent); font-weight: 600; }
+.offer-hr   { color: var(--warning); font-weight: 600; }
+.round-advice { font-size: 11px; color: var(--text-3); line-height: 1.5; }
+</style>
+
+<script>
+let _allRounds = [];
+let _marketSalary = 0;
+
+function startNegotiation() {
+  const marketSalary = parseFloat(document.getElementById('market-salary').value) || 119000;
+  const expLevel     = parseInt(document.getElementById('exp-level').value);
+  const companySize  = parseInt(document.getElementById('company-size').value);
+
+  _marketSalary = marketSalary;
+
+  const btn = document.getElementById('start-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span style="display:inline-block;animation:spin .8s linear infinite;">⟳</span> 模拟中...';
+
+  document.getElementById('neg-empty').style.display   = 'none';
+  document.getElementById('rounds-list').style.display = 'block';
+  document.getElementById('rounds-list').innerHTML     = '';
+  document.getElementById('progress-vis').style.display = 'block';
+  document.getElementById('result-card').style.display  = 'none';
+  document.getElementById('market-ref').style.display   = 'none';
+  document.getElementById('round-badge').textContent    = '';
+
+  fetch('/api/negotiate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ market_salary: marketSalary, exp_level: expLevel, company_size: companySize })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) {
+      alert(data.error);
+      resetBtn();
+      return;
+    }
+    _allRounds = data.rounds;
+    animateRounds(data);
+  })
+  .catch(err => {
+    alert('请求失败：' + err);
+    resetBtn();
+  });
+}
+
+function animateRounds(data) {
+  const list = document.getElementById('rounds-list');
+  let i = 0;
+
+  function showNext() {
+    if (i >= data.rounds.length) {
+      showFinal(data);
+      resetBtn();
+      return;
+    }
+    const r = data.rounds[i];
+    const card = buildRoundCard(r, i);
+    list.appendChild(card);
+    // 滚动到最新
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => card.classList.add('visible'), 30);
+    updateProgressBars(r.candidate_offer, r.hr_offer, data.market_salary);
+    document.getElementById('round-badge').textContent = `第 ${r.round} / ${data.rounds.length} 轮`;
+    i++;
+    if (!r.done) setTimeout(showNext, 800);
+    else { setTimeout(() => showFinal(data), 400); resetBtn(); }
+  }
+  showNext();
+}
+
+function buildRoundCard(r, idx) {
+  const actionIdx = r.action.startsWith('坚持') ? 0 : r.action.startsWith('小幅') ? 1 : 2;
+  const div = document.createElement('div');
+  div.className = 'round-card' + (r.done ? ' done-card' : '');
+  div.innerHTML = `
+    <div class="round-header">
+      <span class="round-num">Round ${r.round}</span>
+      <span class="round-action action-${actionIdx}">${r.action}</span>
+    </div>
+    <div class="round-offers">
+      <span class="offer-you">你的出价：$${r.candidate_offer.toLocaleString()}</span>
+      <span class="offer-hr">HR出价：$${r.hr_offer.toLocaleString()}</span>
+    </div>
+    <div class="round-advice">${r.advice}</div>
+    ${r.done ? `<div style="margin-top:8px;font-size:12px;font-weight:600;color:var(--success);">
+      ✅ 成交：$${r.final_salary.toLocaleString()}</div>` : ''}
+  `;
+  return div;
+}
+
+function updateProgressBars(candidateOffer, hrOffer, market) {
+  // 以市场基准 60% 为进度条基准宽度，最大显示150%
+  const toWidth = v => Math.min(Math.max((v / market) * 60, 10), 100) + '%';
+  document.getElementById('bar-candidate').style.width = toWidth(candidateOffer);
+  document.getElementById('bar-hr').style.width        = toWidth(hrOffer);
+  document.getElementById('bar-candidate-val').textContent = '$' + candidateOffer.toLocaleString();
+  document.getElementById('bar-hr-val').textContent        = '$' + hrOffer.toLocaleString();
+  document.getElementById('bar-market-val').textContent    = '$' + market.toLocaleString();
+}
+
+function showFinal(data) {
+  const vsMarket = data.vs_market;
+  const color = vsMarket >= 0 ? 'var(--success)' : 'var(--danger)';
+  const arrow = vsMarket >= 0 ? '▲' : '▼';
+
+  document.getElementById('result-card').style.display = 'block';
+  document.getElementById('result-salary').textContent = '$' + data.final_salary.toLocaleString();
+  document.getElementById('result-vs').innerHTML =
+    `<span style="color:${color};font-weight:600;">${arrow} ${Math.abs(vsMarket)}%</span>
+     <span style="color:var(--text-3);font-size:12px;margin-left:6px;">相对市场基准</span>`;
+  document.getElementById('result-text').textContent = data.result_text;
+
+  document.getElementById('market-ref').style.display = 'block';
+  document.getElementById('ref-market').textContent = '$' + data.market_salary.toLocaleString();
+  document.getElementById('ref-budget').textContent = '$' + data.hr_budget.toLocaleString() + '（估算）';
+  document.getElementById('ref-final').textContent  = '$' + data.final_salary.toLocaleString();
+}
+
+function resetBtn() {
+  const btn = document.getElementById('start-btn');
+  btn.disabled = false;
+  btn.innerHTML = '<span>▶</span> 重新模拟';
+}
+</script>
+
+<style>
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}

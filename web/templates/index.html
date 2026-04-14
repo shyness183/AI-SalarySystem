@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+{% block title %}数据看板 — AI薪资预测系统{% endblock %}
+{% block page_title %}数据看板{% endblock %}
+{% block page_sub %}全球 AI 岗位薪资概览{% endblock %}
+
+{% block content %}
+<div class="page-card" id="index-card">
+
+  <div class="tab-nav">
+    <button class="tab-btn active" data-target="tab-overview"
+      onclick="switchTab('index-card','tab-overview',function(){mapChart&&mapChart.resize();})">全球概览</button>
+    <button class="tab-btn" data-target="tab-trend"
+      onclick="switchTab('index-card','tab-trend',function(){histChart&&histChart.resize();lstmChart&&lstmChart.resize();})">薪资趋势</button>
+    <button class="tab-btn" data-target="tab-feature"
+      onclick="switchTab('index-card','tab-feature',function(){featChart&&featChart.resize();})">特征分析</button>
+    <button class="tab-btn" data-target="tab-jobcat"
+      onclick="switchTab('index-card','tab-jobcat',function(){jobCatChart&&jobCatChart.resize();})">职位分类分析</button>
+  </div>
+
+  <!-- Tab 1: 全球概览 -->
+  <div class="tab-pane active" id="tab-overview">
+
+    <!-- 指标卡片 -->
+    <div class="metric-row">
+      <div class="metric-card card-primary">
+        <div class="metric-label">XGBoost  R²</div>
+        <div class="metric-value" id="m-r2">—</div>
+        <div class="metric-sub">测试集拟合优度</div>
+      </div>
+      <div class="metric-card card-primary">
+        <div class="metric-label">XGBoost  RMSE</div>
+        <div class="metric-value" id="m-rmse">—</div>
+        <div class="metric-sub">对数空间均方根误差</div>
+      </div>
+      <div class="metric-card card-primary">
+        <div class="metric-label">LSTM  MAPE</div>
+        <div class="metric-value" id="m-mape">—</div>
+        <div class="metric-sub">趋势预测平均误差率</div>
+      </div>
+      <div class="metric-card card-primary">
+        <div class="metric-label">数据集规模</div>
+        <div class="metric-value">30,000</div>
+        <div class="metric-sub">条全球AI招聘记录</div>
+      </div>
+    </div>
+
+    <!-- 股票行情小组件 -->
+    <div class="card card-secondary">
+      <div class="card-title" style="justify-content:space-between;">
+        <span style="display:flex;align-items:center;gap:8px;"><span class="card-title-dot"></span>AI 行业股票实时行情</span>
+        <span style="font-size:11px;color:var(--text-3);" id="stock-update-time">加载中…</span>
+      </div>
+      <div id="stock-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;"></div>
+      <div class="data-source" style="margin-top:10px;">股票走势与 AI 就业市场高度相关，仅供参考 &nbsp;|&nbsp; 数据来自 Yahoo Finance，每10分钟更新</div>
+    </div>
+
+    <!-- 全球地图 -->
+    <div class="card card-primary">
+      <div class="card-title"><span class="card-title-dot"></span>全球 AI 岗位平均薪资分布（USD）</div>
+      <div id="chart-map" style="width:100%;height:400px;"></div>
+      <div class="data-source">数据来源：Kaggle AI Job Salaries &nbsp;|&nbsp; 数据截止：2025年4月 &nbsp;|&nbsp; 样本量：30,000条</div>
+    </div>
+
+  </div><!-- /tab-overview -->
+
+  <!-- Tab 2: 薪资趋势 -->
+  <div class="tab-pane" id="tab-trend">
+    <div class="grid-2">
+      <div class="card card-primary">
+        <div class="card-title"><span class="card-title-dot"></span>月均薪资历史走势</div>
+        <div class="chart-box" id="chart-hist"></div>
+        <div class="data-source">数据来源：Kaggle AI Job Salaries &nbsp;|&nbsp; 样本量：30,000条</div>
+      </div>
+      <div class="card card-primary">
+        <div class="card-title"><span class="card-title-dot"></span>LSTM 趋势预测（含未来3个月）</div>
+        <div class="chart-box" id="chart-lstm"></div>
+        <div class="data-source">模型：双层 LSTM &nbsp;|&nbsp; MAPE=1.17%</div>
+      </div>
+    </div>
+  </div><!-- /tab-trend -->
+
+  <!-- Tab 3: 特征分析 -->
+  <div class="tab-pane" id="tab-feature">
+    <div class="card card-secondary">
+      <div class="card-title"><span class="card-title-dot"></span>Top 10 特征重要性（Gain）</div>
+      <div class="chart-box-lg" id="chart-feat"></div>
+      <div class="data-source">模型：XGBoost &nbsp;|&nbsp; R²=0.8721 &nbsp;|&nbsp; 特征维度：153维</div>
+    </div>
+  </div><!-- /tab-feature -->
+
+  <!-- Tab 4: 职位分类分析 -->
+  <div class="tab-pane" id="tab-jobcat">
+    <div class="card card-secondary">
+      <div class="card-title"><span class="card-title-dot"></span>AI职位类别薪资对比</div>
+      <div class="chart-box-lg" id="chart-jobcat"></div>
+      <div class="data-source">基于30,000条全球AI岗位数据分类分析</div>
+    </div>
+  </div><!-- /tab-jobcat -->
+
+</div><!-- /page-card -->
+
+<style>
+.data-source {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.stock-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  transition: var(--transition-ui);
+}
+.stock-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+.stock-symbol { font-size: 13px; font-weight: 700; color: var(--text-1); }
+.stock-name   { font-size: 11px; color: var(--text-3); margin-bottom: 6px; }
+.stock-price  { font-size: 16px; font-weight: 700; color: var(--text-1); }
+.stock-change { font-size: 12px; font-weight: 600; margin-top: 2px; }
+.stock-up   { color: #10b981; }
+.stock-down { color: #ef4444; }
+</style>
+
+<script>
+const C_ACCENT  = '#4361ee';
+const C_GREEN   = '#10b981';
+const C_ORANGE  = '#f59e0b';
+const C_BORDER  = '#e5e9f0';
+const C_TEXT2   = '#64748b';
+const C_TEXT3   = '#94a3b8';
+
+const histChart   = echarts.init(document.getElementById('chart-hist'));
+const lstmChart   = echarts.init(document.getElementById('chart-lstm'));
+const featChart   = echarts.init(document.getElementById('chart-feat'));
+const mapChart    = echarts.init(document.getElementById('chart-map'));
+const jobCatChart = echarts.init(document.getElementById('chart-jobcat'));
+
+const baseAxis = {
+  axisLine:  { lineStyle: { color: C_BORDER } },
+  axisTick:  { show: false },
+  axisLabel: { color: C_TEXT2, fontSize: 11 },
+  splitLine: { lineStyle: { color: C_BORDER, type: 'dashed' } },
+};
+
+// world.json 与 /api/dashboard 并行加载
+fetch('https://cdn.jsdelivr.net/npm/echarts/map/json/world.json')
+  .then(r => r.json())
+  .then(worldJson => {
+    echarts.registerMap('world', worldJson);
+    if (window._dashboardData) renderMap(window._dashboardData.country_salaries);
+    else window._worldReady = true;
+  });
+
+fetch('/api/dashboard').then(r => r.json()).then(data => {
+  window._dashboardData = data;
+  if (window._worldReady) renderMap(data.country_salaries);
+
+  // 指标卡片（数字滚动动画）
+  var r2El   = document.getElementById('m-r2');
+  var rmseEl = document.getElementById('m-rmse');
+  var mapeEl = document.getElementById('m-mape');
+
+  animateNumber(r2El,   data.metrics.xgb.r2,   1500);
+  animateNumber(rmseEl, data.metrics.xgb.rmse, 1500);
+
+  // MAPE 需带 % 后缀，内联处理
+  (function (el, target) {
+    var startTime = null;
+    function step(ts) {
+      if (!startTime) startTime = ts;
+      var p = Math.min((ts - startTime) / 1500, 1);
+      el.textContent = ((1 - Math.pow(1 - p, 4)) * target).toFixed(2) + '%';
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  })(mapeEl, data.metrics.lstm.mape);
+
+  // ── 图1：月均历史折线 ──
+  histChart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#fff',
+      borderColor: C_BORDER,
+      textStyle: { color: '#1e293b', fontSize: 12 },
+      formatter: p => `<b>${p[0].name}</b><br/>均值薪资：$${p[0].value.toLocaleString()}`
+    },
+    grid: { left: 56, right: 16, top: 16, bottom: 36 },
+    xAxis: { ...baseAxis, type: 'category', data: data.hist.months, axisLabel: { ...baseAxis.axisLabel, rotate: 35 } },
+    yAxis: { ...baseAxis, type: 'value', axisLabel: { ...baseAxis.axisLabel, formatter: v => '$' + (v/1000).toFixed(0) + 'k' } },
+    series: [{
+      type: 'line', data: data.hist.actuals, smooth: true,
+      lineStyle: { color: C_ACCENT, width: 2 },
+      itemStyle: { color: C_ACCENT },
+      areaStyle: { color: { type:'linear', x:0,y:0,x2:0,y2:1,
+        colorStops:[{offset:0,color:'rgba(67,97,238,.14)'},{offset:1,color:'rgba(67,97,238,0)'}] } },
+      symbol: 'circle', symbolSize: 4
+    }]
+  });
+
+  // ── 图2：LSTM 预测 ──
+  const months = data.lstm.months;
+  const actual = data.lstm.actual;
+  const predicted = data.lstm.predicted;
+  const types = data.lstm.type;
+
+  const histActual  = actual.map((v,i)    => types[i] !== 'forecast'  ? v : null);
+  const testPred    = predicted.map((v,i) => types[i] === 'test_pred' ? v : null);
+  const lastHistIdx = types.lastIndexOf('historical');
+  const forecastLine = months.map((_, i) => {
+    if (i === lastHistIdx)      return actual[i];
+    if (types[i] === 'forecast') return predicted[i];
+    return null;
+  });
+
+  lstmChart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#fff', borderColor: C_BORDER,
+      textStyle: { color: '#1e293b', fontSize: 12 }
+    },
+    legend: {
+      data: ['实际值','测试预测','未来预测'], bottom: 0,
+      itemWidth: 12, textStyle: { color: C_TEXT2, fontSize: 11 }
+    },
+    grid: { left: 56, right: 16, top: 16, bottom: 40 },
+    xAxis: { ...baseAxis, type: 'category', data: months, axisLabel: { ...baseAxis.axisLabel, rotate: 35 } },
+    yAxis: { ...baseAxis, type: 'value', axisLabel: { ...baseAxis.axisLabel, formatter: v => '$' + (v/1000).toFixed(0) + 'k' } },
+    series: [
+      { name:'实际值',   type:'line',    data: histActual, smooth:true,
+        lineStyle:{color:C_ACCENT,width:2}, itemStyle:{color:C_ACCENT},
+        symbol:'circle', symbolSize:4, connectNulls:false },
+      { name:'测试预测', type:'scatter', data: testPred,
+        symbolSize:9, symbol:'triangle', itemStyle:{color:C_GREEN} },
+      { name:'未来预测', type:'line',    data: forecastLine,
+        lineStyle:{color:C_ORANGE,width:2,type:'dashed'},
+        itemStyle:{color:C_ORANGE}, symbol:'diamond', symbolSize:7, connectNulls:false }
+    ]
+  });
+
+  // ── 图3：特征重要性 ──
+  const feats = [...data.feature_importance].reverse();
+  const barColors = feats.map((_, i) => {
+    const t = i / (feats.length - 1);
+    const r = Math.round(67  + (199-67)  * t);
+    const g = Math.round(97  + (210-97)  * t);
+    const b = Math.round(238 + (238-238) * t);
+    return `rgba(${r},${g},${b},${1 - t*0.5})`;
+  });
+
+  featChart.setOption({
+    tooltip: {
+      trigger: 'axis', axisPointer: { type:'shadow' },
+      backgroundColor: '#fff', borderColor: C_BORDER,
+      textStyle: { color: '#1e293b', fontSize: 12 },
+      formatter: p => `<b>${p[0].name}</b><br/>Gain: ${p[0].value}`
+    },
+    grid: { left: 96, right: 60, top: 12, bottom: 12 },
+    xAxis: { ...baseAxis, type: 'value', splitLine:{lineStyle:{color:C_BORDER,type:'dashed'}} },
+    yAxis: { ...baseAxis, type: 'category', data: feats.map(f => f.feature),
+      axisLabel: { color: C_TEXT2, fontSize: 12 }, splitLine: {show:false} },
+    series: [{
+      type: 'bar',
+      data: feats.map((f,i) => ({ value: f.gain, itemStyle:{ color: barColors[i], borderRadius:3 } })),
+      label: { show:true, position:'right', formatter: p => p.value.toFixed(1),
+               fontSize:11, color: C_TEXT2 },
+      barMaxWidth: 24
+    }]
+  });
+
+  renderJobCat(data.job_categories);
+});
+
+function renderJobCat(cats) {
+  if (!cats || cats.length === 0) return;
+  // CSV 按中位数降序排列，reverse 后 ECharts 从下往上显示最高在顶
+  const items = [...cats].reverse();
+  jobCatChart.setOption({
+    tooltip: {
+      trigger: 'axis', axisPointer: { type: 'shadow' },
+      backgroundColor: '#fff', borderColor: C_BORDER,
+      textStyle: { color: '#1e293b', fontSize: 12 },
+      formatter: function(p) {
+        const d = cats.find(c => c.category === p[0].name);
+        if (!d) return p[0].name;
+        return `<b>${d.category}</b><br/>` +
+          `中位数：$${Number(d.median).toLocaleString()}<br/>` +
+          `均值：$${Number(d.mean).toLocaleString()}<br/>` +
+          `Q25：$${Number(d.q25).toLocaleString()}<br/>` +
+          `Q75：$${Number(d.q75).toLocaleString()}<br/>` +
+          `样本量：${d.count.toLocaleString()} 条`;
+      }
+    },
+    grid: { left: 160, right: 80, top: 12, bottom: 12 },
+    xAxis: {
+      ...baseAxis, type: 'value',
+      axisLabel: { ...baseAxis.axisLabel, formatter: v => '$' + (v / 1000).toFixed(0) + 'k' },
+      splitLine: { lineStyle: { color: C_BORDER, type: 'dashed' } }
+    },
+    yAxis: {
+      ...baseAxis, type: 'category',
+      data: items.map(c => c.category),
+      axisLabel: { color: C_TEXT2, fontSize: 12 }, splitLine: { show: false }
+    },
+    series: [{
+      type: 'bar',
+      data: items.map((c, i) => ({
+        value: c.median,
+        itemStyle: {
+          color: {
+            type: 'linear', x: 0, y: 0, x2: 1, y2: 0,
+            colorStops: [
+              { offset: 0, color: '#4361ee' },
+              { offset: 1, color: '#7b9bff' }
+            ]
+          },
+          opacity: 1 - i * (0.25 / Math.max(items.length - 1, 1)),
+          borderRadius: 3
+        }
+      })),
+      label: {
+        show: true, position: 'right',
+        formatter: p => '$' + (p.value / 1000).toFixed(0) + 'k',
+        fontSize: 11, color: C_TEXT2
+      },
+      barMaxWidth: 28
+    }]
+  });
+}
+
+window.addEventListener('resize', () => {
+  histChart.resize(); lstmChart.resize(); featChart.resize(); mapChart.resize(); jobCatChart.resize();
+});
+
+// ── 股票行情 ──────────────────────────────────────────
+function loadStocks() {
+  fetch('/api/stock-data').then(r => r.json()).then(stocks => {
+    const grid = document.getElementById('stock-grid');
+    grid.innerHTML = stocks.map(s => {
+      if (s.price === null) {
+        return `<div class="stock-card">
+          <div class="stock-symbol">${s.symbol}</div>
+          <div class="stock-name">${s.name}</div>
+          <div class="stock-price" style="color:var(--text-3);">—</div>
+          <div class="stock-change" style="color:var(--text-3);">数据不可用</div>
+        </div>`;
+      }
+      const cls = s.up ? 'stock-up' : 'stock-down';
+      const arrow = s.up ? '▲' : '▼';
+      return `<div class="stock-card">
+        <div class="stock-symbol">${s.symbol}</div>
+        <div class="stock-name">${s.name}</div>
+        <div class="stock-price">$${s.price.toLocaleString()}</div>
+        <div class="stock-change ${cls}">${arrow} ${s.change >= 0 ? '+' : ''}${s.change} (${s.change_pct >= 0 ? '+' : ''}${s.change_pct}%)</div>
+      </div>`;
+    }).join('');
+
+    const now = new Date();
+    document.getElementById('stock-update-time').textContent =
+      '更新时间：' + now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  }).catch(() => {
+    document.getElementById('stock-grid').innerHTML =
+      '<div style="color:var(--text-3);font-size:12px;padding:8px;">股票数据加载失败，请检查网络</div>';
+  });
+}
+
+loadStocks();
+setInterval(loadStocks, 600000);  // 每10分钟刷新
+
+function renderMap(countryData) {
+  const values = countryData.map(d => d.value);
+  mapChart.setOption({
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: '#fff', borderColor: C_BORDER,
+      textStyle: { color: '#1e293b', fontSize: 12 },
+      formatter: p => p.value !== undefined && !isNaN(p.value)
+        ? `<b>${p.name}</b><br/>平均薪资：$${Number(p.value).toLocaleString()}`
+        : `${p.name}<br/><span style="color:${C_TEXT3}">暂无数据</span>`
+    },
+    visualMap: {
+      min: Math.min(...values),
+      max: Math.max(...values),
+      left: 16, bottom: 20,
+      text: ['高', '低'],
+      textStyle: { color: C_TEXT2, fontSize: 11 },
+      inRange: { color: ['#dbeafe','#93c5fd','#4361ee','#2d3ea8'] },
+      calculable: true, itemWidth: 12, itemHeight: 90
+    },
+    series: [{
+      type: 'map', map: 'world',
+      roam: true, zoom: 1.15,
+      emphasis: {
+        label: { show: false },
+        itemStyle: { areaColor: '#fde68a' }
+      },
+      itemStyle: {
+        areaColor: '#f1f5f9',
+        borderColor: '#cbd5e1',
+        borderWidth: 0.5
+      },
+      data: countryData
+    }]
+  });
+}
+</script>
+{% endblock %}

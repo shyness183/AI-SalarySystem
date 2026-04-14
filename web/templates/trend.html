@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}趋势分析 — AI薪资预测系统{% endblock %}
+{% block page_title %}趋势分析{% endblock %}
+{% block page_sub %}LSTM 时序模型 · 全球AI月均薪资走势{% endblock %}
+
+{% block content %}
+<div class="page-card" id="trend-card">
+
+  <div class="tab-nav">
+    <button class="tab-btn active" data-target="tab-trendchart"
+      onclick="switchTab('trend-card','tab-trendchart',function(){trendChart&&trendChart.resize();})">趋势图</button>
+    <button class="tab-btn" data-target="tab-forecast"
+      onclick="switchTab('trend-card','tab-forecast')">预测数据</button>
+    <button class="tab-btn" data-target="tab-model"
+      onclick="switchTab('trend-card','tab-model')">模型说明</button>
+  </div>
+
+  <!-- Tab 1: 趋势图 -->
+  <div class="tab-pane active" id="tab-trendchart">
+    <!-- 指标卡片 -->
+    <div class="metric-row">
+      <div class="metric-card card-primary">
+        <div class="metric-label">RMSE</div>
+        <div class="metric-value">$1,428</div>
+        <div class="metric-sub">均方根误差（美元空间）</div>
+      </div>
+      <div class="metric-card card-primary">
+        <div class="metric-label">MAE</div>
+        <div class="metric-value">$1,402</div>
+        <div class="metric-sub">平均绝对误差</div>
+      </div>
+      <div class="metric-card card-primary">
+        <div class="metric-label">MAPE</div>
+        <div class="metric-value">1.17%</div>
+        <div class="metric-sub">平均绝对百分误差</div>
+      </div>
+      <div class="metric-card card-primary">
+        <div class="metric-label">预测窗口</div>
+        <div class="metric-value">3 个月</div>
+        <div class="metric-sub">向未来递推预测</div>
+      </div>
+    </div>
+
+    <!-- 主图 -->
+    <div class="card card-primary">
+      <div class="card-title">
+        <span class="card-title-dot"></span>
+        全球 AI 月均薪资趋势（2024-01 至 2025-07）
+      </div>
+      <div class="chart-box-lg" id="chart-trend"></div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:8px;padding-top:6px;border-top:1px solid #e5e9f0;">
+        数据来源：Kaggle AI Job Salaries &nbsp;|&nbsp; 数据截止：2025年4月 &nbsp;|&nbsp; 样本量：30,000条 &nbsp;|&nbsp; 模型：双层 LSTM，MAPE=1.17%
+      </div>
+    </div>
+  </div><!-- /tab-trendchart -->
+
+  <!-- Tab 2: 预测数据 -->
+  <div class="tab-pane" id="tab-forecast">
+    <div class="card card-primary">
+      <div class="card-title"><span class="card-title-dot"></span>未来 3 个月预测结果</div>
+      <div class="forecast-cards">
+        <div class="forecast-card">
+          <div class="fc-month">2025-05</div>
+          <div class="fc-val">$119,787</div>
+        </div>
+        <div class="forecast-card">
+          <div class="fc-month">2025-06</div>
+          <div class="fc-val">$119,616</div>
+        </div>
+        <div class="forecast-card">
+          <div class="fc-month">2025-07</div>
+          <div class="fc-val">$120,292</div>
+        </div>
+      </div>
+      <p class="fs-12 text-dim" style="margin-top:14px;">
+        预测基于 2024-01 至 2025-04 的 16 个月历史数据，滑动窗口（window=3）递推预测，趋势稳定在 11.9 万美元区间。
+      </p>
+    </div>
+  </div><!-- /tab-forecast -->
+
+  <!-- Tab 3: 模型说明 -->
+  <div class="tab-pane" id="tab-model">
+    <div class="card card-secondary">
+      <div class="card-title"><span class="card-title-dot"></span>LSTM 模型结构说明</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <div style="font-size:13px;color:var(--text-2);line-height:2.1;">
+          <p>· <b style="color:var(--text-1)">输入层</b>：滑动窗口大小 = 3（前3个月月均薪资）</p>
+          <p>· <b style="color:var(--text-1)">隐藏层</b>：双层 LSTM（64单元 → 32单元）+ Dropout(0.2)</p>
+          <p>· <b style="color:var(--text-1)">输出层</b>：Dense(16, relu) → Dense(1)</p>
+        </div>
+        <div style="font-size:13px;color:var(--text-2);line-height:2.1;">
+          <p>· <b style="color:var(--text-1)">训练策略</b>：EarlyStopping（patience=30）+ ReduceLROnPlateau</p>
+          <p>· <b style="color:var(--text-1)">归一化</b>：MinMaxScaler(0, 1)，归一化器保存于 lstm_scaler.pkl</p>
+          <p>· <b style="color:var(--text-1)">与XGBoost关系</b>：互补，不是串联，各自独立预测</p>
+        </div>
+      </div>
+    </div>
+  </div><!-- /tab-model -->
+
+</div><!-- /page-card -->
+
+<script>
+const C_ACCENT = '#4361ee';
+const C_GREEN  = '#10b981';
+const C_ORANGE = '#f59e0b';
+const C_BORDER = '#e5e9f0';
+const C_TEXT2  = '#64748b';
+
+const trendChart = echarts.init(document.getElementById('chart-trend'));
+
+const baseAxis = {
+  axisLine:  { lineStyle: { color: C_BORDER } },
+  axisTick:  { show: false },
+  axisLabel: { color: C_TEXT2, fontSize: 11 },
+  splitLine: { lineStyle: { color: C_BORDER, type: 'dashed' } },
+};
+
+fetch('/api/trend').then(r => r.json()).then(data => {
+  const months    = data.months;
+  const actual    = data.actual;
+  const predicted = data.predicted;
+  const types     = data.type;
+  const upper     = data.upper_bound;
+  const lower     = data.lower_bound;
+
+  // 置信区间：以 lower 为堆叠基准，(upper - lower) 为填充高度
+  const bandBase   = lower;
+  const bandHeight = lower.map((l, i) =>
+    l !== null && upper[i] !== null ? upper[i] - l : null
+  );
+
+  const histActual  = actual.map((v,i)    => types[i] !== 'forecast'  ? v : null);
+  const testPred    = predicted.map((v,i) => types[i] === 'test_pred' ? v : null);
+  const lastHistIdx = types.lastIndexOf('historical');
+  const forecastLine = months.map((_,i) => {
+    if (i === lastHistIdx)       return actual[i];
+    if (types[i] === 'forecast') return predicted[i];
+    return null;
+  });
+
+  const validActual = actual.filter(v => v !== null);
+  const avg = Math.round(validActual.reduce((a,b)=>a+b,0) / validActual.length);
+  const avgLine = months.map(() => avg);
+
+  trendChart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#fff',
+      borderColor: C_BORDER,
+      textStyle: { color: '#1e293b', fontSize: 12 },
+      formatter: params => {
+        let tip = `<b>${params[0].axisValue}</b><br/>`;
+        const skip = new Set(['_ci_lower', '预测置信区间']);
+        params.forEach(p => {
+          if (p.value !== null && p.value !== undefined && !skip.has(p.seriesName))
+            tip += `${p.marker}${p.seriesName}：$${Number(p.value).toLocaleString()}<br/>`;
+        });
+        return tip;
+      }
+    },
+    legend: {
+      data: ['实际月均薪资','测试集预测','未来预测','历史均值','预测置信区间'],
+      bottom: 0, itemWidth: 12, textStyle: { color: C_TEXT2, fontSize: 11 }
+    },
+    grid: { left: 62, right: 24, top: 20, bottom: 48 },
+    xAxis: { ...baseAxis, type:'category', data:months,
+             axisLabel:{...baseAxis.axisLabel, rotate:35} },
+    yAxis: { ...baseAxis, type:'value',
+             min: v => Math.floor(v.min * 0.995 / 1000) * 1000,
+             axisLabel:{...baseAxis.axisLabel, formatter: v => '$'+(v/1000).toFixed(0)+'k'} },
+    series: [
+      {
+        name:'实际月均薪资', type:'line', data:histActual,
+        smooth:true, connectNulls:false,
+        lineStyle:{color:C_ACCENT, width:2.5},
+        itemStyle:{color:C_ACCENT},
+        areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,
+          colorStops:[{offset:0,color:'rgba(67,97,238,.12)'},{offset:1,color:'rgba(67,97,238,0)'}]}},
+        symbol:'circle', symbolSize:4
+      },
+      {
+        name:'测试集预测', type:'scatter', data:testPred,
+        symbolSize:11, symbol:'triangle', itemStyle:{color:C_GREEN}
+      },
+      {
+        name:'未来预测', type:'line', data:forecastLine,
+        smooth:false, connectNulls:false,
+        lineStyle:{color:C_ORANGE, width:2.5, type:'dashed'},
+        itemStyle:{color:C_ORANGE}, symbol:'diamond', symbolSize:8
+      },
+      {
+        name:'历史均值', type:'line', data:avgLine,
+        lineStyle:{color:'#cbd5e1', width:1, type:'dotted'},
+        itemStyle:{color:'#cbd5e1'}, symbol:'none'
+      },
+      {
+        name:'_ci_lower', type:'line', data:bandBase,
+        stack:'ci_band', symbol:'none',
+        lineStyle:{width:0}, areaStyle:{color:'transparent'},
+        silent:true
+      },
+      {
+        name:'预测置信区间', type:'line', data:bandHeight,
+        stack:'ci_band', symbol:'none',
+        lineStyle:{width:0},
+        itemStyle:{color:C_ORANGE},
+        areaStyle:{color:`rgba(245,158,11,0.15)`},
+        silent:true
+      }
+    ]
+  });
+});
+
+window.addEventListener('resize', () => trendChart.resize());
+</script>
+{% endblock %}
